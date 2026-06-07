@@ -404,7 +404,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S3 — Autenticação
+\#### \[x] S3 — Autenticação
 
 \*\*Depende de:\*\* S1, S2
 
@@ -1209,6 +1209,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test`/`build`/`format:check`/`audit` todos verdes. AO VIVO (Postgres efêmero): `migrate dev` OK, seed 2x sem duplicar (18 permissions, 4 papéis, 1 tenant/clínica/unidade, 1 revisor), teste de idempotência 2/2 passou. Container efêmero derrubado ao fim (nada commitado de docker).
 
   \- \*Pendências p/ próxima:\* (1) ainda falta `docker-compose.yml` (Postgres+Redis) — herdado da S1, necessário p/ dev local sem docker manual e p/ validar `/health` 200. (2) Conta demo de revisor: `revisor.demo@vero.com.br` / senha `VeroDemo!2026` (dev) — documentar nas notas de revisão de loja e trocar via `SEED_DEMO_PASSWORD` em prod. Próxima sessão: \*\*S3 — Autenticação\*\* (login/refresh/logout, JWT + refresh rotativo no Redis).
+
+\- \*\*2026-06-07 · S3 — Autenticação\*\*
+
+  \- \*O que foi feito:\* módulo `auth` completo. `POST /auth/login` valida `tenantSlug`+`email`+`password` (argon2.verify) e emite par de tokens; `POST /auth/refresh` rotaciona (consome o `jti` antigo via Redis `GETDEL` — reuso do refresh antigo → 401); `POST /auth/logout` revoga o `jti` (204, idempotente). Access JWT curto (15min) + refresh longo (7d) revogável: a sessão só vale enquanto o `jti` existir no Redis (whitelist `auth:refresh:{jti}` com TTL). Erro de credencial SEMPRE genérico (`Credenciais inválidas`, 401) — não revela usuário vs senha. Rate limit reforçado anti-brute-force no login: 5/min/IP (`@Throttle` sobrepondo o throttler global só na rota). `JwtStrategy` (passport-jwt) valida access e popula `req.user` (userId/tenantId/roleId) — pronto para os guards da S4; rejeita token tipo `refresh` em rota protegida. DTOs com class-validator (rejeita 400). Validado AO VIVO (Postgres+Redis efêmeros, API real): login 200, login inválido 401 genérico, refresh 200 + reuso do antigo 401, logout 204 + refresh pós-logout 401. `GET /health` também respondeu 200 em runtime (fecha a verificação pendente da S1).
+
+  \- \*Arquivos tocados:\* `apps/api/src/auth/{auth.module,auth.service,auth.controller}.ts`, `apps/api/src/auth/strategies/jwt.strategy.ts`, `apps/api/src/auth/dto/{login.dto,refresh.dto}.ts`, `apps/api/src/app.module.ts` (importa `AuthModule`), `apps/api/package.json` (deps `@nestjs/jwt`+`@nestjs/passport`+`passport`+`passport-jwt`+`class-validator`+`class-transformer`, dev `@types/passport-jwt`), teste `apps/api/test/auth.service.spec.ts` (4 casos). Lockfile atualizado.
+
+  \- \*Decisões:\* login multi-tenant exige `tenantSlug` (email único só por tenant). Refresh ROTATIVO com whitelist no Redis (não blacklist): `GETDEL` consome o jti atomicamente → rotação e detecção de reuso num passo. Access e refresh assinados com o MESMO `JWT_SECRET`, diferenciados pelo claim `type` (`access`/`refresh`) + expiração; jti só no refresh. TTLs como constantes na `AuthService` (15m/7d) — não viraram env (simplicidade §8). `logout` é best-effort/silencioso em token inválido (não vaza). Anti-brute-force via throttler por IP (5/min); lockout por conta ficou fora de escopo (throttler cobre o aceite). 4 testes são UNITÁRIOS (mock de Prisma/Redis/JWT/argon2) → `pnpm test` verde sem DB; o fluxo real foi coberto pelo smoke test ao vivo.
+
+  \- \*Verificação:\* `pnpm lint`/`test` (17 testes; 4 novos de auth)/`build`/`format:check`/`audit` verdes. AO VIVO: 6/6 casos do aceite (login ok/erro, refresh+reuso, logout+pós-logout) com status HTTP corretos; `/health` 200. Containers efêmeros derrubados ao fim (nada de docker commitado).
+
+  \- \*Pendências p/ próxima:\* (1) `start` do `apps/api/package.json` aponta `node dist/main.js`, mas `nest build` emite em `dist/src/main.js` (rootDir `.` inclui src+test) — mismatch pré-existente da S1, corrigir ao mexer no build/Dockerfile. (2) `docker-compose.yml` (Postgres+Redis) ainda pendente. (3) Considerar lockout por conta além do rate limit por IP. Próxima sessão: \*\*S4 — RBAC + tenant guard + anti-IDOR\*\* (a `JwtStrategy` já entrega tenantId/roleId em `req.user`).
 
 
 

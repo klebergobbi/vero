@@ -358,7 +358,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S1 — Base do backend (NestJS endurecido)
+\#### \[x] S1 — Base do backend (NestJS endurecido)
 
 \*\*Depende de:\*\* S0
 
@@ -1185,6 +1185,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Decisões:\* Node `>=20` + pnpm fixado em `8.15.6` via `packageManager` (corepack). Turbo 2.x → chave `tasks` (não mais `pipeline`). ESLint 8 (`.eslintrc`-style) para máxima compatibilidade dos presets. tsconfig estrito (noUncheckedIndexedAccess, exactOptionalPropertyTypes). `.env*` ignorado desde já; `.env.example` sem segredos.
 
   \- \*Pendências p/ próxima:\* repositório \*\*git ainda não inicializado\*\* (usuário optou por adiar) — antes da S1 rodar `git init` e commitar o lockfile (§4 exige lockfile commitado). Próxima sessão: \*\*S1 — Base do backend (NestJS endurecido)\*\*.
+
+\- \*\*2026-06-06 · S1 — Base do backend (NestJS endurecido)\*\*
+
+  \- \*O que foi feito:\* `apps/api` (NestJS 11) sobe com config validada por Zod (aborta com mensagem clara se faltar env), Helmet (CSP/HSTS), CORS por allowlist via env, rate limit global (Throttler 100/15min), logger JSON (nestjs-pino) com trace id por request e redact de authorization/cookie, `enableShutdownHooks`, ValidationPipe global (whitelist). `GET /health` checa Postgres + Redis e responde 503 fail-closed se algo cair. Filtro global de exceções: HttpException repassa payload seguro, erro inesperado vira 500 genérico (stack só no log). git inicializado e S0 commitada.
+
+  \- \*Arquivos tocados:\* `apps/api/{package.json,tsconfig.json,tsconfig.build.json,nest-cli.json,jest.config.js,.eslintrc.cjs,.env.example}`, `apps/api/prisma/schema.prisma` (só generator+datasource), `src/main.ts`, `src/app.module.ts`, `src/config/env.validation.ts`, `src/prisma/{prisma.service,prisma.module}.ts`, `src/redis/{redis.service,redis.module}.ts`, `src/health/{health.controller,health.module}.ts`, `src/common/filters/all-exceptions.filter.ts`, testes `test/{env.validation,health.controller}.spec.ts`; raiz: `.gitattributes` (LF).
+
+  \- \*Decisões:\* NestJS 11 + @nestjs/config 4 + throttler 6 + nestjs-pino 4 + ioredis 5 + Prisma 6. `tsconfig` da api sobrescreve base para CommonJS/Node + decorators. `exactOptionalPropertyTypes` exigiu omitir a chave `transport` do pino em prod (não setar `undefined`). ESLint preset referenciado via `require.resolve` (resolução de subpath do ESLint 8 falha sem isso). PrismaModule/RedisModule são `@Global`. Helmet com defaults (CSP/HSTS on).
+
+  \- \*Verificação:\* `pnpm build`/`lint`/`test` (7 testes) verdes, `pnpm audit` sem vulnerabilidades, `format:check` limpo. \*\*Não\*\* validei `GET /health` 200 em runtime — exige Postgres+Redis de pé (sem docker-compose ainda); a lógica está coberta por testes unitários.
+
+  \- \*Pendências p/ próxima:\* criar `docker-compose.yml` (Postgres+Redis) para subir a API localmente e validar `/health` 200 de verdade. Próxima sessão: \*\*S2 — Schema núcleo multi-tenant + seed\*\* (modelos entram em `schema.prisma`).
 
 
 

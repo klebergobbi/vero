@@ -1,0 +1,47 @@
+{
+  "name": "@vero/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vero — backend NestJS (única fonte de verdade e de segredos).",
+  "main": "dist/main.js",
+  "scripts": {
+    "prebuild": "prisma generate",
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "lint": "eslint \"{src,test}/**/*.ts\"",
+    "pretest": "prisma generate",
+    "test": "jest --passWithNoTests",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/throttler": "^6.4.0",
+    "@prisma/client": "^6.2.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.0",
+    "nestjs-pino": "^4.3.0",
+    "pino-http": "^10.3.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.0",
+    "@vero/config": "workspace:*",
+    "jest": "^29.7.0",
+    "pino-pretty": "^13.0.0",
+    "prisma": "^6.2.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

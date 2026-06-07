@@ -1,0 +1,12 @@
+// Vero — schema Prisma.
+// S1: apenas generator + datasource (sem modelos ainda).
+// Os modelos do núcleo multi-tenant (Tenant, Clinic, Unit, User, ...) entram na S2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

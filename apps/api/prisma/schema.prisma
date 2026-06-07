@@ -31,6 +31,8 @@ model Tenant {
   rolePermissions RolePermission[]
   auditLogs       AuditLog[]
   patients        Patient[]
+  appointments    Appointment[]
+  availabilities  Availability[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -60,9 +62,11 @@ model Unit {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  clinic    Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
-  userUnits UserUnit[]
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic         Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  userUnits      UserUnit[]
+  appointments   Appointment[]
+  availabilities Availability[]
 
   @@index([tenantId])
   @@index([clinicId])
@@ -83,9 +87,11 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  role   Role       @relation(fields: [roleId], references: [id])
-  units  UserUnit[]
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role           Role           @relation(fields: [roleId], references: [id])
+  units          UserUnit[]
+  appointments   Appointment[]  @relation("ProfessionalAppointments")
+  availabilities Availability[] @relation("ProfessionalAvailability")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -207,9 +213,10 @@ model Patient {
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  referredBy Patient?  @relation("PatientReferral", fields: [referredById], references: [id])
-  referrals  Patient[] @relation("PatientReferral")
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referredBy   Patient?      @relation("PatientReferral", fields: [referredById], references: [id])
+  referrals    Patient[]     @relation("PatientReferral")
+  appointments Appointment[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -226,4 +233,66 @@ enum LeadSource {
   WHATSAPP
   SITE
   OUTROS
+}
+
+/// Agendamento (§6: Appointment — status, marcadores). Tenant-scoped, soft-delete.
+/// `startsAt`/`endsAt` são instantes UTC; o fuso da unidade rege as regras de disponibilidade.
+model Appointment {
+  id             String            @id @default(cuid())
+  tenantId       String
+  unitId         String
+  /// profissional responsável (User com papel DENTISTA, em geral).
+  professionalId String
+  patientId      String
+  /// sala (opcional) — modelo Room ainda não existe; usado para conflito de sala.
+  roomId         String?
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AppointmentStatus @default(SCHEDULED)
+  /// marcadores livres (ex.: "primeira-consulta", "retorno").
+  markers        String[]          @default([])
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit         Unit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  professional User    @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
+  patient      Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId, professionalId, startsAt])
+  @@index([tenantId, unitId, startsAt])
+  @@index([tenantId, roomId, startsAt])
+  @@index([patientId])
+}
+
+/// Espelha APPOINTMENT_STATUSES em @vero/types (mantenha ambos em sincronia).
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// Janela de disponibilidade de um profissional numa unidade, por dia da semana.
+/// Horários em minutos desde 00:00 no FUSO da unidade (0=domingo .. 6=sábado).
+model Availability {
+  id             String   @id @default(cuid())
+  tenantId       String
+  unitId         String
+  professionalId String
+  dayOfWeek      Int
+  startMinute    Int
+  endMinute      Int
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit         Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  professional User   @relation("ProfessionalAvailability", fields: [professionalId], references: [id])
+
+  @@index([tenantId, professionalId, dayOfWeek])
 }

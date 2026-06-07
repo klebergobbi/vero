@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import type { IncomingMessage } from "node:http";
+import { AppointmentModule } from "./appointment/appointment.module";
 import { AuthModule } from "./auth/auth.module";
 import { AuditModule } from "./common/audit/audit.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
@@ -70,6 +71,7 @@ import { RedisModule } from "./redis/redis.module";
     HealthModule,
     AuthModule,
     PatientModule,
+    AppointmentModule,
   ],
   providers: [
     // Ordem importa: rate limit → autenticação → tenant → autorização (deny-by-default).

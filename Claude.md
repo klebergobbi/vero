@@ -468,7 +468,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S6 — Appointment + Availability (backend)
+\#### \[x] S6 — Appointment + Availability (backend)
 
 \*\*Depende de:\*\* S5
 
@@ -1245,6 +1245,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (36 testes; 8 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO (PG+Redis efêmeros + API real): CREATE 201 (phone/cpf normalizados), GET/LIST/PATCH 200, CPF inválido e telefone inválido → 400 com mensagem; \*\*anti-IDOR real\*\*: inserido paciente sob outro tenant via SQL → GET/PATCH como tenant demo → 403, listagem do demo não o vê; soft-delete → DELETE 204, GET pós-delete 403, linha preservada com `deletedAt`. Containers derrubados.
 
   \- \*Pendências p/ próxima:\* (1) invalidar cache `rbac:perms` no PERMISSION_CHANGED. (2) mismatch `start`→`dist/src/main.js` (S1). (3) `docker-compose.yml` pendente. (4) lockout por conta. Próxima sessão: \*\*S6 — Appointment + Availability\*\* (núcleo da agenda: checagem de conflito por profissional/sala, timezone da unidade; tentar marcar em horário ocupado → 409).
+
+\- \*\*2026-06-07 · S6 — Appointment + Availability (backend)\*\*
+
+  \- \*O que foi feito:\* núcleo da agenda. Modelo `Appointment` (FK profissional=User/paciente/unidade, `roomId?`, `startsAt`/`endsAt` como instantes UTC, enum `AppointmentStatus`, `markers String[]`, soft-delete) + `Availability` (janela por profissional/unidade/dia-da-semana, minutos do dia no fuso da unidade). `AppointmentService`: create/findOne/findAll/move/cancel + createAvailability/listAvailability, TODO via `TenantScope` (anti-IDOR 403). \*\*Conflito (409)\*\* por profissional E por sala (overlap de instantes `startsAt < :end AND endsAt > :start`, ignorando status CANCELLED/NO_SHOW); `move` exclui o próprio id do conflito. \*\*Disponibilidade\*\* enforce-if-defined: se há janela definida p/ o dia, o horário deve caber — convertendo o instante UTC p/ o fuso da unidade via `Intl` (util pura `localDayAndMinute`, sem dep nova). Controller com `@Permissions('appointment:read|write|cancel')` por rota, reusando `@TenantId()` (S5). Validações: `startsAt<endsAt`, profissional/paciente/unidade existem no tenant.
+
+  \- \*Arquivos tocados:\* `packages/types/src/appointment.ts` (+export — APPOINTMENT_STATUSES, FREEING_STATUSES), `apps/api/prisma/schema.prisma` (+Appointment +AppointmentStatus +Availability +back-relations em Tenant/Unit/User/Patient), `apps/api/prisma/migrations/20260607192813_s6_appointment/` (aditiva), `apps/api/src/appointment/{appointment.module,appointment.service,appointment.controller,agenda.util}.ts`, `apps/api/src/appointment/dto/{create-appointment,move-appointment,create-availability,list-appointments}.dto.ts`, `apps/api/src/app.module.ts` (+AppointmentModule), teste `apps/api/test/appointment.service.spec.ts` (8 casos). \*\*Sem dep nova\*\* (timezone via Intl).
+
+  \- \*Decisões:\* tempos como instantes UTC (conflito é tz-agnóstico — overlap de instantes); o fuso da unidade só rege a disponibilidade (Availability em minutos locais + dayOfWeek 0=dom). Profissional = `User` (sem modelo `Professional` dedicado ainda — §6 lista, fica p/ depois). `roomId` é string opcional (modelo `Room` não existe ainda) — conflito de sala já funciona. Disponibilidade enforce-if-defined (sem janela → não bloqueia) p/ não travar o fluxo básico nem os testes de conflito. `Intl.DateTimeFormat` p/ converter UTC→local sem luxon/dep.
+
+  \- \*Verificação:\* `pnpm lint`/`test` (39 testes; 8 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO (PG+Redis efêmeros + API real): criar 201, \*\*conflito de horário 409\*\* (no create e no move), agendamento adjacente 201, mover p/ slot livre 200, cancelar 200 + recriar no slot liberado 201, disponibilidade DENTRO 201 / FORA 400 (conversão de fuso SP correta: 16:00Z→13:00 local fora da janela 09–12), anti-IDOR cross-tenant 403. Bônus: o rate limit do login (5/min, S3) disparou de verdade durante a bateria. Containers efêmeros derrubados (Docker Desktop instável durante a sessão — reiniciado 1x; possíveis containers `vero-s6-*` órfãos a limpar quando o daemon voltar).
+
+  \- \*Pendências p/ próxima:\* (1) modelo `Professional` e `Room` dedicados (hoje profissional=User, room=string). (2) invalidar cache `rbac:perms` no PERMISSION_CHANGED. (3) mismatch `start`→`dist/src/main.js` (S1). (4) `docker-compose.yml` pendente. (5) lockout por conta. Próxima sessão: \*\*S7 — Web base + agenda\*\* (1ª tela de gestão: `apps/web` Next.js 14 + `packages/api-client` tipado com refresh transparente; logar e ver/criar agendamento; token em cookie httpOnly).
 
 
 

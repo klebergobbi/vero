@@ -428,7 +428,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S4 — RBAC + tenant guard + anti-IDOR
+\#### \[x] S4 — RBAC + tenant guard + anti-IDOR
 
 \*\*Depende de:\*\* S3
 
@@ -1221,6 +1221,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (17 testes; 4 novos de auth)/`build`/`format:check`/`audit` verdes. AO VIVO: 6/6 casos do aceite (login ok/erro, refresh+reuso, logout+pós-logout) com status HTTP corretos; `/health` 200. Containers efêmeros derrubados ao fim (nada de docker commitado).
 
   \- \*Pendências p/ próxima:\* (1) `start` do `apps/api/package.json` aponta `node dist/main.js`, mas `nest build` emite em `dist/src/main.js` (rootDir `.` inclui src+test) — mismatch pré-existente da S1, corrigir ao mexer no build/Dockerfile. (2) `docker-compose.yml` (Postgres+Redis) ainda pendente. (3) Considerar lockout por conta além do rate limit por IP. Próxima sessão: \*\*S4 — RBAC + tenant guard + anti-IDOR\*\* (a `JwtStrategy` já entrega tenantId/roleId em `req.user`).
+
+\- \*\*2026-06-07 · S4 — RBAC + tenant guard + anti-IDOR\*\*
+
+  \- \*O que foi feito:\* cadeia de controle de acesso GLOBAL, deny-by-default (CLAUDE.md §4 A01 — risco #1). Ordem dos APP_GUARD: `ThrottlerGuard` → `JwtAuthGuard` (authn passport-jwt, respeita `@Public`) → `TenantGuard` (exige tenantId do JWT, injeta `req.tenantId`, 401 se faltar) → `PermissionsGuard` (deny-by-default: rota sem `@Permissions` e não `@Public` é NEGADA; checa se o papel tem TODAS as permissions exigidas; cacheia permissions do papel no Redis `rbac:perms:{roleId}` TTL 300s, carregando do DB tenant-scoped). Toda negação grava `AUTHZ_DENIED` no AuditLog (sem PII — só ids/ação/metadata). `@Public()` aplicado em `AuthController` e `HealthController`. `TenantScope` (helper anti-IDOR): `where()`/`ownerWhere()` forçam `tenantId` (+`ownerId`) no filtro Prisma; `ensureOwned()` lança Forbidden quando o registro não está no escopo (não vaza existência cross-tenant). `AuditService` (@Global) grava eventos de segurança fail-open no log (auditoria nunca derruba a request). Decorators `@Permissions(...keys)` type-safe (PermissionKey de @vero/types) e `@Public()`.
+
+  \- \*Arquivos tocados:\* `apps/api/src/common/decorators/{public,permissions}.decorator.ts`, `apps/api/src/common/guards/{jwt-auth,tenant,permissions}.guard.ts`, `apps/api/src/common/repositories/tenant-scoped.helper.ts`, `apps/api/src/common/audit/{audit.service,audit.module}.ts`, `apps/api/src/app.module.ts` (importa AuditModule + registra os 3 guards globais), `apps/api/src/auth/auth.controller.ts` (+`@Public`), `apps/api/src/health/health.controller.ts` (+`@Public`), teste `apps/api/test/access-control.spec.ts` (9 casos).
+
+  \- \*Decisões:\* cadeia GLOBAL (não por-controller) → API inteira nasce deny-by-default; rotas existentes marcadas `@Public`. Adicionados `JwtAuthGuard`+`@Public` (não listados na spec, mas necessários para a authn global respeitar rotas públicas sem quebrar S3/health). PermissionsGuard cacheia permissions por papel no Redis (evita hit no DB por request); invalidação em PERMISSION_CHANGED virá quando houver edição de papéis. `TenantScope.ensureOwned` lança Forbidden (403) por fidelidade ao aceite (vs 404). Sessão excedeu os 5 arquivos nominais porque o núcleo de acesso é atômico (deixar metade quebra a postura de segurança) — a própria spec da S4 agrupa estes componentes.
+
+  \- \*Verificação:\* `pnpm lint`/`test` (29 testes; 9 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO com rota-sonda TEMPORÁRIA (criada, testada e REMOVIDA antes do commit — sem resíduo): sem token→401, com token sem `@Permissions`→403 (deny-by-default), com token + permission do papel→200, públicas (/health, /auth/login)→200. Confirmado no Postgres que o 403 gravou linha `AUTHZ_DENIED` no AuditLog com actorId e `metadata.required`, sem PII. Containers efêmeros derrubados.
+
+  \- \*Pendências p/ próxima:\* (1) invalidar cache `rbac:perms:{roleId}` ao alterar permissões de um papel (PERMISSION_CHANGED). (2) mismatch `start`→`dist/src/main.js` (S1) ainda aberto. (3) `docker-compose.yml` ainda pendente. (4) lockout por conta. Próxima sessão: \*\*S5 — Módulo Patient\*\* (1º recurso tenant-scoped real; usar `@Permissions('patient:*')` + `TenantScope` no service; teste anti-IDOR tenant A↔B).
 
 
 

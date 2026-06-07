@@ -6,7 +6,11 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import type { IncomingMessage } from "node:http";
 import { AuthModule } from "./auth/auth.module";
+import { AuditModule } from "./common/audit/audit.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
+import { PermissionsGuard } from "./common/guards/permissions.guard";
+import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -61,11 +65,16 @@ import { RedisModule } from "./redis/redis.module";
 
     PrismaModule,
     RedisModule,
+    AuditModule,
     HealthModule,
     AuthModule,
   ],
   providers: [
+    // Ordem importa: rate limit → autenticação → tenant → autorização (deny-by-default).
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })

@@ -1,9 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { Public } from "../common/decorators/public.decorator";
 import { AuthService, type TokenPair } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshDto } from "./dto/refresh.dto";
 
+// Rotas de autenticação são públicas (não exigem token nem permission).
+@Public()
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}

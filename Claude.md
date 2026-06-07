@@ -382,7 +382,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S2 — Schema núcleo multi-tenant + seed
+\#### \[x] S2 — Schema núcleo multi-tenant + seed
 
 \*\*Depende de:\*\* S1
 
@@ -1197,6 +1197,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm build`/`lint`/`test` (7 testes) verdes, `pnpm audit` sem vulnerabilidades, `format:check` limpo. \*\*Não\*\* validei `GET /health` 200 em runtime — exige Postgres+Redis de pé (sem docker-compose ainda); a lógica está coberta por testes unitários.
 
   \- \*Pendências p/ próxima:\* criar `docker-compose.yml` (Postgres+Redis) para subir a API localmente e validar `/health` 200 de verdade. Próxima sessão: \*\*S2 — Schema núcleo multi-tenant + seed\*\* (modelos entram em `schema.prisma`).
+
+\- \*\*2026-06-07 · S2 — Schema núcleo multi-tenant + seed\*\*
+
+  \- \*O que foi feito:\* schema Prisma do núcleo Org/Acesso com 9 modelos multi-tenant (`Tenant, Clinic, Unit, User, UserUnit, Role, Permission, RolePermission, AuditLog`) + enum `AuditAction`. Todos com `tenantId` (regra §2), exceto `Permission` (catálogo global de sistema — exceção documentada). Anti-IDOR de base: email único POR TENANT (`@@unique([tenantId,email])`), índices em `tenantId`. Novo pacote `@vero/types` (compila CommonJS p/ runtime NestJS/ts-node) como FONTE ÚNICA do catálogo de 18 permissions, dos 4 papéis de sistema com mapeamento papel→permission, e das ações de auditoria (const + Zod). Seed IDEMPOTENTE (upsert / ids determinísticos) cria tenant demo + clínica + unidade, papéis, permissions e a CONTA DEMO DE REVISOR de loja (§5) com senha argon2 (de `SEED_DEMO_PASSWORD`; default só fora de produção). Validado AO VIVO contra Postgres efêmero (docker): `migrate dev` aplicou (migration 100% aditiva, não-destrutiva), `prisma db seed` rodou 2x sem duplicar, e o teste de idempotência (2 casos: contagens estáveis + senha demo confere) passou.
+
+  \- \*Arquivos tocados:\* `packages/types/{package.json,tsconfig.json,.eslintrc.cjs,src/index.ts,src/rbac.ts}` (novo pacote); `apps/api/prisma/schema.prisma` (9 modelos + enum), `apps/api/prisma/seed.ts` (novo), `apps/api/prisma/migrations/20260607084705_s2_core_multitenant/` (gerada); `apps/api/package.json` (deps `argon2`+`@vero/types`, config `prisma.seed`, scripts `prisma:seed`/`prisma:migrate`/`test:int`); `apps/api/test/seed.idempotency.spec.ts` (novo, gated por `RUN_DB_TESTS`); `apps/api/.env.example` (sem alteração nesta sessão). Lockfile atualizado.
+
+  \- \*Decisões:\* `@vero/types` compila para CommonJS (`module: CommonJS`) — NestJS/ts-node consomem JS, não TS-source; `main`→`dist/index.js`, build via `tsc` (turbo `^build` garante ordem antes da api). `Role.key`/`Permission.key` como String (não enum Prisma) → permite papéis customizados sem migration de enum; `AuditAction` é enum Prisma (set fixo, integridade no banco) espelhado em `@vero/types` (Prisma exige o enum no DSL — única duplicação aceita, comentada nos dois lados). `UserUnit`/`RolePermission` carregam `tenantId` (consistência com o tenant-scoped helper da S4). Soft-delete (`deletedAt`) preparado em Tenant/Clinic/Unit/User. Teste de idempotência é INTEGRAÇÃO (exige Postgres), gated por `RUN_DB_TESTS=1` (`pnpm --filter @vero/api test:int`) p/ manter `pnpm test`/CI verdes sem banco — o CI ganha serviço Postgres na S52. Aviso do Prisma 6 sobre migrar `package.json#prisma`→`prisma.config.ts` (obrigatório só no Prisma 7) anotado, não migrado agora.
+
+  \- \*Verificação:\* `pnpm lint`/`test`/`build`/`format:check`/`audit` todos verdes. AO VIVO (Postgres efêmero): `migrate dev` OK, seed 2x sem duplicar (18 permissions, 4 papéis, 1 tenant/clínica/unidade, 1 revisor), teste de idempotência 2/2 passou. Container efêmero derrubado ao fim (nada commitado de docker).
+
+  \- \*Pendências p/ próxima:\* (1) ainda falta `docker-compose.yml` (Postgres+Redis) — herdado da S1, necessário p/ dev local sem docker manual e p/ validar `/health` 200. (2) Conta demo de revisor: `revisor.demo@vero.com.br` / senha `VeroDemo!2026` (dev) — documentar nas notas de revisão de loja e trocar via `SEED_DEMO_PASSWORD` em prod. Próxima sessão: \*\*S3 — Autenticação\*\* (login/refresh/logout, JWT + refresh rotativo no Redis).
 
 
 

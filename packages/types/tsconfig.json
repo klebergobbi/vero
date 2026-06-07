@@ -1,0 +1,14 @@
+{
+  "extends": "@vero/config/tsconfig.base.json",
+  "compilerOptions": {
+    // Compila para CommonJS para consumo direto pelo runtime NestJS (CJS) e ts-node (seed).
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

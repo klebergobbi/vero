@@ -1,6 +1,8 @@
 // Vero — schema Prisma.
-// S1: apenas generator + datasource (sem modelos ainda).
-// Os modelos do núcleo multi-tenant (Tenant, Clinic, Unit, User, ...) entram na S2.
+// S2: núcleo multi-tenant Org/Acesso (CLAUDE.md §6).
+// Regra de ouro (§2): TODA tabela de negócio tem `tenantId`; nenhuma query roda
+// sem filtro de tenant (o tenant-scoped helper da S4 força `where: { tenantId }`).
+// Exceção documentada: `Permission` é catálogo de sistema (global), não dado de tenant.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +11,177 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// Raiz multi-tenant. Cada clínica/franquia é um Tenant isolado.
+model Tenant {
+  id        String    @id @default(cuid())
+  /// slug único global (usado em URLs/identificação); o restante é escopado por tenant.
+  slug      String    @unique
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // soft-delete preparado
+
+  clinics         Clinic[]
+  units           Unit[]
+  users           User[]
+  roles           Role[]
+  userUnits       UserUnit[]
+  rolePermissions RolePermission[]
+  auditLogs       AuditLog[]
+}
+
+/// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
+model Clinic {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  units  Unit[]
+
+  @@index([tenantId])
+}
+
+/// Unidade física (consultório) de uma clínica.
+model Unit {
+  id        String    @id @default(cuid())
+  tenantId  String
+  clinicId  String
+  name      String
+  /// fuso da unidade — base para regras de agenda (§6/S6).
+  timezone  String    @default("America/Sao_Paulo")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clinic    Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  userUnits UserUnit[]
+
+  @@index([tenantId])
+  @@index([clinicId])
+}
+
+/// Usuário do sistema (gestor, dentista, recepção, financeiro...). Um papel por usuário.
+model User {
+  id           String    @id @default(cuid())
+  tenantId     String
+  /// email único POR TENANT (não global) — §S2 segurança.
+  email        String
+  /// hash argon2 da senha; a senha em claro NUNCA é persistida nem logada (§4).
+  passwordHash String
+  name         String
+  roleId       String
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role   Role       @relation(fields: [roleId], references: [id])
+  units  UserUnit[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+/// Unidades que um usuário pode acessar (§6: UserUnit). Escopado por tenant.
+model UserUnit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  unitId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, unitId])
+  @@index([tenantId])
+  @@index([unitId])
+}
+
+/// Papel (RBAC) por tenant. `key` em string permite papéis customizados sem
+/// migration de enum; os de sistema (GESTOR/DENTISTA/RECEPCAO/FINANCEIRO) têm isSystem=true.
+model Role {
+  id        String   @id @default(cuid())
+  tenantId  String
+  key       String
+  name      String
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+/// Catálogo GLOBAL de permissões (definição de sistema, não dado de tenant).
+/// Populado pelo seed a partir de @vero/types (fonte única). Sem tenantId por design.
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+/// Associação papel↔permissão (deny-by-default: ausência = sem acesso). Escopado por tenant.
+model RolePermission {
+  id           String   @id @default(cuid())
+  tenantId     String
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([tenantId])
+  @@index([permissionId])
+}
+
+/// Trilha de auditoria (§4 A09). NUNCA armazenar PII aqui — apenas ids, ação e
+/// metadados não-sensíveis. `metadata` é JSON livre, mas os callers garantem ausência de PII.
+model AuditLog {
+  id         String      @id @default(cuid())
+  tenantId   String
+  action     AuditAction
+  /// usuário que originou o evento (nullable: ex. falha de login sem usuário resolvido).
+  actorId    String?
+  /// tipo/id do recurso afetado (ex.: "Patient" / id) — sem nomes/PII.
+  targetType String?
+  targetId   String?
+  ip         String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action])
+}
+
+/// Espelha AUDIT_ACTIONS em @vero/types (mantenha ambos em sincronia).
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGOUT
+  AUTHZ_DENIED
+  SENSITIVE_READ
+  PERMISSION_CHANGED
 }

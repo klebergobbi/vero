@@ -30,6 +30,7 @@ model Tenant {
   userUnits       UserUnit[]
   rolePermissions RolePermission[]
   auditLogs       AuditLog[]
+  patients        Patient[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -184,4 +185,45 @@ enum AuditAction {
   AUTHZ_DENIED
   SENSITIVE_READ
   PERMISSION_CHANGED
+}
+
+/// Paciente (§6: Patient — origem do lead, indicado_por). Tenant-scoped, soft-delete preparado.
+/// Cadastro rápido de 1ª consulta: só `name`+`phone`+`leadSource` obrigatórios.
+model Patient {
+  id           String     @id @default(cuid())
+  tenantId     String
+  name         String
+  /// telefone normalizado (só dígitos): 10 (fixo) ou 11 (celular).
+  phone        String
+  /// CPF normalizado (só dígitos); único por tenant quando informado.
+  cpf          String?
+  email        String?
+  birthDate    DateTime?
+  leadSource   LeadSource
+  /// auto-relação: paciente que indicou este (quando leadSource = INDICACAO_PACIENTE).
+  referredById String?
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referredBy Patient?  @relation("PatientReferral", fields: [referredById], references: [id])
+  referrals  Patient[] @relation("PatientReferral")
+
+  @@unique([tenantId, cpf])
+  @@index([tenantId])
+  @@index([referredById])
+}
+
+/// Espelha LEAD_SOURCES em @vero/types (mantenha ambos em sincronia).
+enum LeadSource {
+  INDICACAO_PACIENTE
+  INDICACAO_PROFISSIONAL
+  INSTAGRAM
+  FACEBOOK
+  GOOGLE
+  WHATSAPP
+  SITE
+  OUTROS
 }

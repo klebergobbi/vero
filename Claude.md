@@ -454,7 +454,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S5 — Módulo Patient
+\#### \[x] S5 — Módulo Patient
 
 \*\*Depende de:\*\* S4
 
@@ -1233,6 +1233,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (29 testes; 9 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO com rota-sonda TEMPORÁRIA (criada, testada e REMOVIDA antes do commit — sem resíduo): sem token→401, com token sem `@Permissions`→403 (deny-by-default), com token + permission do papel→200, públicas (/health, /auth/login)→200. Confirmado no Postgres que o 403 gravou linha `AUTHZ_DENIED` no AuditLog com actorId e `metadata.required`, sem PII. Containers efêmeros derrubados.
 
   \- \*Pendências p/ próxima:\* (1) invalidar cache `rbac:perms:{roleId}` ao alterar permissões de um papel (PERMISSION_CHANGED). (2) mismatch `start`→`dist/src/main.js` (S1) ainda aberto. (3) `docker-compose.yml` ainda pendente. (4) lockout por conta. Próxima sessão: \*\*S5 — Módulo Patient\*\* (1º recurso tenant-scoped real; usar `@Permissions('patient:*')` + `TenantScope` no service; teste anti-IDOR tenant A↔B).
+
+\- \*\*2026-06-07 · S5 — Módulo Patient\*\*
+
+  \- \*O que foi feito:\* 1º recurso de negócio tenant-scoped — CRUD de paciente usando a infra da S4. Modelo `Patient` (name/phone obrigatórios + leadSource; cpf/email/birthDate/referredById/notes opcionais — "cadastro rápido de 1ª consulta"), auto-relação `referredBy` (indicação), `@@unique([tenantId, cpf])`, soft-delete (`deletedAt`). Enum `LeadSource`. `PatientService` faz TODA query via `TenantScope` (anti-IDOR): `findOne/update/remove` chamam `ensureOwned` → 403 em recurso de outro tenant; `assertReferrer` valida que o indicador é do mesmo tenant. `remove` é soft-delete. Controller com `@Permissions('patient:read|write|delete')` por rota (deny-by-default herdado da S4) e novo param decorator `@TenantId()` (lê `req.tenantId` posto pelo TenantGuard). Validação de CPF (dígitos verificadores) e telefone BR (DDD + 10/11 díg.) como fonte única em `@vero/types`, reusada no DTO via custom validators class-validator (`@IsCpf`/`@IsBrazilianPhone`). `UpdatePatientDto` via `PartialType` (@nestjs/mapped-types). phone/cpf normalizados (só dígitos) ao persistir.
+
+  \- \*Arquivos tocados:\* `packages/types/src/patient.ts` (+export no index — LeadSource, isValidCpf, isValidBrazilianPhone, normalizeDigits), `apps/api/prisma/schema.prisma` (+Patient +enum LeadSource +Tenant.patients), `apps/api/prisma/migrations/20260607172126_s5_patient/` (gerada, aditiva), `apps/api/src/patient/{patient.module,patient.service,patient.controller}.ts`, `apps/api/src/patient/dto/{create-patient.dto,update-patient.dto,validators}.ts`, `apps/api/src/common/decorators/tenant-id.decorator.ts`, `apps/api/src/app.module.ts` (+PatientModule), `apps/api/package.json` (+@nestjs/mapped-types), teste `apps/api/test/patient.service.spec.ts` (8 casos). Lockfile atualizado.
+
+  \- \*Decisões:\* CPF/telefone validados em @vero/types (fonte única front+back, §2) e expostos ao DTO por custom decorators (class-validator no DTO = barreira real, §4). `ensureOwned` retorna 403 (não 404) por fidelidade ao aceite. `referredById` validado contra o mesmo tenant (anti-IDOR + integridade). CPF único por tenant (nullable → múltiplos nulls OK no Postgres). Busca simples (`q` por nome/telefone, take 50) — sem paginação avançada (§8, só o essencial). Lembrete: o Prisma Client precisa de `prisma generate` após mexer no schema (o `nest build` direto não roda o prebuild) — gerar antes de buildar.
+
+  \- \*Verificação:\* `pnpm lint`/`test` (36 testes; 8 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO (PG+Redis efêmeros + API real): CREATE 201 (phone/cpf normalizados), GET/LIST/PATCH 200, CPF inválido e telefone inválido → 400 com mensagem; \*\*anti-IDOR real\*\*: inserido paciente sob outro tenant via SQL → GET/PATCH como tenant demo → 403, listagem do demo não o vê; soft-delete → DELETE 204, GET pós-delete 403, linha preservada com `deletedAt`. Containers derrubados.
+
+  \- \*Pendências p/ próxima:\* (1) invalidar cache `rbac:perms` no PERMISSION_CHANGED. (2) mismatch `start`→`dist/src/main.js` (S1). (3) `docker-compose.yml` pendente. (4) lockout por conta. Próxima sessão: \*\*S6 — Appointment + Availability\*\* (núcleo da agenda: checagem de conflito por profissional/sala, timezone da unidade; tentar marcar em horário ocupado → 409).
 
 
 

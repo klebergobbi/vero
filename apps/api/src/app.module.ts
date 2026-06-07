@@ -13,6 +13,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
+import { PatientModule } from "./patient/patient.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 
@@ -68,6 +69,7 @@ import { RedisModule } from "./redis/redis.module";
     AuditModule,
     HealthModule,
     AuthModule,
+    PatientModule,
   ],
   providers: [
     // Ordem importa: rate limit → autenticação → tenant → autorização (deny-by-default).

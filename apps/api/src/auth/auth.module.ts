@@ -5,6 +5,8 @@ import { PassportModule } from "@nestjs/passport";
 import type { Env } from "../config/env.validation";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { PatientAuthController } from "./patient-auth.controller";
+import { PatientAuthService } from "./patient-auth.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 
 /**
@@ -21,8 +23,8 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController, PatientAuthController],
+  providers: [AuthService, PatientAuthService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -209,6 +209,8 @@ model Patient {
   /// auto-relação: paciente que indicou este (quando leadSource = INDICACAO_PACIENTE).
   referredById String?
   notes        String?
+  /// hash argon2 da senha do App do Paciente (null = paciente ainda sem acesso ao app).
+  passwordHash String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?

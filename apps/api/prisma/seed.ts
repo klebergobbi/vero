@@ -18,6 +18,10 @@ const DEMO_TENANT_SLUG = "vero-demo";
 const DEMO_CLINIC_ID = "demo-clinic";
 const DEMO_UNIT_ID = "demo-unit";
 const DEMO_REVIEWER_EMAIL = "revisor.demo@vero.com.br";
+// Conta demo do App do Paciente (revisor de loja, §5). CPF de teste válido.
+const DEMO_PATIENT_ID = "demo-patient";
+const DEMO_PATIENT_CPF = "39053344705";
+const DEMO_PATIENT_EMAIL = "paciente.demo@vero.com.br";
 
 function resolveDemoPassword(): string {
   const fromEnv = process.env.SEED_DEMO_PASSWORD;
@@ -145,12 +149,39 @@ async function seedReviewer(
   console.log(`  ✓ conta demo de revisor (${DEMO_REVIEWER_EMAIL})`);
 }
 
+async function seedDemoPatient(tenantId: string): Promise<void> {
+  // Re-hasheia sempre (garante que a senha demo bata após o seed mesmo se mudou).
+  const passwordHash = await argon2.hash(resolveDemoPassword());
+  await prisma.patient.upsert({
+    where: { id: DEMO_PATIENT_ID },
+    update: {
+      name: "Paciente Demo",
+      tenantId,
+      cpf: DEMO_PATIENT_CPF,
+      email: DEMO_PATIENT_EMAIL,
+      passwordHash,
+    },
+    create: {
+      id: DEMO_PATIENT_ID,
+      tenantId,
+      name: "Paciente Demo",
+      phone: "11999990000",
+      cpf: DEMO_PATIENT_CPF,
+      email: DEMO_PATIENT_EMAIL,
+      leadSource: "OUTROS",
+      passwordHash,
+    },
+  });
+  console.log(`  ✓ paciente demo do app (${DEMO_PATIENT_EMAIL})`);
+}
+
 export async function main(): Promise<void> {
   console.log("→ Seed Vero (idempotente)…");
   const permissionIds = await seedPermissions();
   const tenantId = await seedTenant();
   const roleIds = await seedRoles(tenantId, permissionIds);
   await seedReviewer(tenantId, roleIds);
+  await seedDemoPatient(tenantId);
   console.log("✓ Seed concluído.");
 }
 

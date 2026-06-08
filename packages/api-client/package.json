@@ -1,0 +1,23 @@
+{
+  "name": "@vero/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Client HTTP tipado do backend Vero (thin client — sem segredos; usado server-side).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@vero/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vero/config": "workspace:*",
+    "eslint": "^8.57.1",
+    "typescript": "^5.6.3"
+  }
+}

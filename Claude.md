@@ -70,7 +70,7 @@ Quatro superfícies sobre \*\*uma única API\*\*:
 
 |---|---|---|---|
 
-| Gestão da clínica | `apps/web` | Next.js 14 (desktop/tablet) | Não |
+| Gestão da clínica | `apps/web` | Next.js 15 (desktop/tablet) | Não |
 
 | App do Paciente | `apps/mobile-patient` | Expo (React Native) | \*\*App Store + Play\*\* |
 
@@ -104,7 +104,7 @@ vero/
 
 │   ├── api/                # NestJS — única fonte de verdade e de segredos
 
-│   ├── web/                # Next.js 14 — gestão da clínica (desktop/tablet)
+│   ├── web/                # Next.js 15 — gestão da clínica (desktop/tablet)
 
 │   ├── mobile-patient/     # Expo — App do Paciente (consumer, loja)
 
@@ -152,7 +152,7 @@ Regras de arquitetura (não-negociáveis):
 
 \- \*\*Backend\*\*: NestJS · Prisma · PostgreSQL · Redis · BullMQ.
 
-\- \*\*Web\*\*: Next.js 14 (App Router) · TailwindCSS.
+\- \*\*Web\*\*: Next.js 15 (App Router) · React 19 · TailwindCSS. \[atualizado na S7a: era Next 14; subiu p/ 15 por 6 CVEs HIGH sem patch no 14.x — §4 prevalece. ADR pendente.\]
 
 \- \*\*Mobile\*\*: Expo (SDK estável mais recente) · EAS Build/Submit/Update · Expo Router · Expo Notifications.
 
@@ -1257,6 +1257,20 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (39 testes; 8 novos)/`build`/`format:check`/`audit` verdes. Validado AO VIVO (PG+Redis efêmeros + API real): criar 201, \*\*conflito de horário 409\*\* (no create e no move), agendamento adjacente 201, mover p/ slot livre 200, cancelar 200 + recriar no slot liberado 201, disponibilidade DENTRO 201 / FORA 400 (conversão de fuso SP correta: 16:00Z→13:00 local fora da janela 09–12), anti-IDOR cross-tenant 403. Bônus: o rate limit do login (5/min, S3) disparou de verdade durante a bateria. Containers efêmeros derrubados (Docker Desktop instável durante a sessão — reiniciado 1x; possíveis containers `vero-s6-*` órfãos a limpar quando o daemon voltar).
 
   \- \*Pendências p/ próxima:\* (1) modelo `Professional` e `Room` dedicados (hoje profissional=User, room=string). (2) invalidar cache `rbac:perms` no PERMISSION_CHANGED. (3) mismatch `start`→`dist/src/main.js` (S1). (4) `docker-compose.yml` pendente. (5) lockout por conta. Próxima sessão: \*\*S7 — Web base + agenda\*\* (1ª tela de gestão: `apps/web` Next.js 14 + `packages/api-client` tipado com refresh transparente; logar e ver/criar agendamento; token em cookie httpOnly).
+
+\- \*\*2026-06-08 · S7a — Web base (scaffold + auth + guard)\*\*  ·  \*S7 dividida em S7a (esta) + S7b (tela de agenda, pendente)\*
+
+  \- \*O que foi feito:\* 1ª superfície frontend. `packages/api-client` (client HTTP tipado, thin — recebe baseUrl/token, sem segredos). `apps/web` Next.js (App Router) com padrão \*\*BFF\*\*: o browser só fala com o Next; login via \*\*Server Action\*\* troca credenciais na API e grava tokens em \*\*cookie httpOnly\*\* (`vero_at`/`vero_rt`); `middleware.ts` faz guard deny-by-default (rota protegida sem sessão → /login) e \*\*refresh transparente\*\* (quando o cookie de access de 15min expira, renova no backend usando o refresh e regrava os cookies antes de renderizar). `lib/session.ts` centraliza os cookies (Next 15: `cookies()` async). Página `/login` (form client + `useActionState`, erro genérico) e `/agenda` mínima protegida (lista/criação são da S7b). Tailwind com a paleta da marca (preset compartilhado). CORS nem se aplica (chamadas server-side).
+
+  \- \*Arquivos tocados:\* `packages/api-client/{package.json,tsconfig.json,.eslintrc.cjs,src/index.ts}`; `apps/web/{package.json,tsconfig.json,next.config.mjs,postcss.config.mjs,tailwind.config.ts,.eslintrc.cjs,.env.example}`, `apps/web/app/{layout.tsx,page.tsx,globals.css,login/{page.tsx,actions.ts},agenda/page.tsx}`, `apps/web/lib/session.ts`, `apps/web/middleware.ts`; raiz: `.gitignore`+`.prettierignore` (+`next-env.d.ts`), `package.json` (pnpm.overrides postcss).
+
+  \- \*Decisões (IMPORTANTE):\* \*\*subimos para Next.js 15 + React 19\*\* (era Next 14 no §3). Motivo: o Next 14 tinha \*\*6 vulnerabilidades HIGH\*\* (DoS/SSRF/bypass de middleware) SEM patch no 14.x — só corrigidas no 15 (`>=15.5.16`). §4 (segurança) prevalece sobre o pin do §3; \*\*§3 atualizado p/ Next 15\*\*. \*\*ADR pendente\*\* em `/docs/adr` registrando o desvio. Também: `postcss>=8.5.10` via `pnpm.overrides` (corrige 1 moderate XSS). Migração 14→15: `cookies()`/`headers()` async, `useFormState`→`useActionState`. Auth via BFF/Server Actions (cookie httpOnly só pode ser setado em Action/Route Handler/middleware, nunca em render de Server Component) — por isso o refresh transparente vive no \*\*middleware\*\* (que pode setar cookie na response), e Server Components só LEEM.
+
+  \- \*Verificação:\* `pnpm lint`/`build` (Next 15 buildou: /login estático, /agenda dinâmico, middleware ~35kB)/`test` (39)/`format:check`/`audit` \*\*zero vulnerabilidades\*\* (6 high + 1 moderate resolvidos). AO VIVO (`next start`, sem API/DB): guard de rota OK — `/agenda` e `/` sem cookie → \*\*307 → /login\*\*, `/login` → 200 e renderiza o form. O fluxo completo \*login→cookie→agenda\* (precisa da API+DB+Redis) NÃO foi exercido por browser nesta sessão (Docker Desktop instável + disco a 98%); coberto por: build type-checkando o BFF + auth da API já validada ao vivo na S3. Fica p/ a S7b (com Playwright/webapp-testing) ou verificação manual.
+
+  \- \*Incidentes/ambiente:\* disco encheu (\*\*ENOSPC\*\*) e \*\*truncou `apps/web/package.json` para 0 bytes\*\* — reescrito; conferir integridade de arquivos após ENOSPC. Docker Desktop caiu várias vezes (daemon trava o pipe). Containers `vero-s6-*` podem estar órfãos.
+
+  \- \*Pendências p/ próxima:\* (1) \*\*S7b — tela de agenda\*\* (listar/criar agendamento consumindo a API via BFF; e2e de login com Playwright). (2) criar o \*\*ADR do Next 15\*\* em `/docs/adr`. (3) liberar disco / limpar `.vhdx` do Docker. (4) demais pendências herdadas (Professional/Room, cache rbac, `start` path, docker-compose, lockout).
 
 
 

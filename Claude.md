@@ -482,7 +482,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S7 — Web base + agenda
+\#### \[x] S7 — Web base + agenda  ·  \*(S7a scaffold/auth + S7b tela de agenda)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1271,6 +1271,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Incidentes/ambiente:\* disco encheu (\*\*ENOSPC\*\*) e \*\*truncou `apps/web/package.json` para 0 bytes\*\* — reescrito; conferir integridade de arquivos após ENOSPC. Docker Desktop caiu várias vezes (daemon trava o pipe). Containers `vero-s6-*` podem estar órfãos.
 
   \- \*Pendências p/ próxima:\* (1) \*\*S7b — tela de agenda\*\* (listar/criar agendamento consumindo a API via BFF; e2e de login com Playwright). (2) criar o \*\*ADR do Next 15\*\* em `/docs/adr`. (3) liberar disco / limpar `.vhdx` do Docker. (4) demais pendências herdadas (Professional/Room, cache rbac, `start` path, docker-compose, lockout).
+
+\- \*\*2026-06-08 · S7b — Tela de agenda (listar + criar via BFF)\*\*  ·  \*fecha a S7\*
+
+  \- \*O que foi feito:\* 1ª tela de gestão útil. `packages/api-client` ganhou os métodos de negócio prometidos na S7a — `listPatients`, `listAppointments(params)`, `createAppointment(input)` — com tipos `Appointment`/`PatientSummary`/`CreateAppointmentInput` (status tipado via `@vero/types`). `apps/web/lib/api.ts` (`serverApi()`) monta o client autenticado a partir do cookie httpOnly de access (lido server-side; o middleware da S7a já o renovou de forma transparente). `app/agenda/page.tsx` virou Server Component que busca agendamentos + pacientes em paralelo (fail-soft: erro de dependência mostra aviso, não derruba a UI) e renderiza lista + form. `app/agenda/actions.ts` é a Server Action de criação: converte `datetime-local`→ISO, valida UX e traduz erros do backend em mensagens seguras (409→conflito, 400→inválido/fora da disponibilidade, 403→sem permissão), com `revalidatePath`. `app/agenda/appointment-form.tsx` é o form client (`useActionState`) com dropdown de paciente (da API) e IDs de unidade/profissional como texto (sem endpoint de listagem ainda). Criado o \*\*ADR 0001\*\* (`docs/adr/0001-next15-upgrade.md`) registrando o desvio §3 (Next 14→15) — pendência da S7a fechada.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (tipos + 3 métodos), `apps/web/lib/api.ts` (novo), `apps/web/app/agenda/{page.tsx (reescrita),actions.ts (novo),appointment-form.tsx (novo)}`, `docs/adr/0001-next15-upgrade.md` (novo). Sem dep nova.
+
+  \- \*Decisões:\* mantido o padrão BFF da S7a — toda chamada à API sai do servidor do Next com o token do cookie; nada de token/segredo no browser (§2/§5). Os métodos de negócio entraram no `api-client` (e não inline no web) porque é a fonte única de contrato HTTP (§8) e o próprio comentário da S7a já reservava o espaço. Unidade/profissional como input de texto (não dropdown) porque \*\*não há endpoint de listagem de Unit/User\*\* ainda — criar um expandiria o escopo para a API; fica para sessão futura (junto de Professional/Room dedicados). `page.tsx` é `force-dynamic` (dados por sessão). `next dev` no teste ao vivo (não `next start`) porque em produção o cookie vira `secure` e não trafega sobre http local.
+
+  \- \*Verificação:\* `pnpm lint`/`test` (37, 2 skip de DB)/`build` (Next 15: /agenda dinâmico ~103kB)/`format:check`/`audit` \*\*zero vulnerabilidades\*\* — todos verdes. \*\*E2E AO VIVO\*\* (PG+Redis efêmeros nas portas 5455/6395 p/ não colidir com outros projetos, API + web reais): contrato exato do api-client batido por curl contra o backend (login → `listPatients` → `createAppointment` 201 → conflito \*\*409\*\* → `listAppointments` mostra). E pelo \*\*navegador (Playwright)\*\*: login no web grava cookie httpOnly e redireciona p/ /agenda, a lista renderiza o agendamento (busca server-side com o token do cookie), o form cria um 2º agendamento ("Agendamento criado.") que aparece como "Agendamentos (2)" — screenshot confirmou o render (paleta da marca, badge de status). Ambiente efêmero 100% derrubado ao fim (containers removidos, `.env` e temporários apagados; árvore limpa — só os 6 arquivos da sessão).
+
+  \- \*Pendências p/ próxima:\* (1) endpoints de listagem de \*\*Unit\*\* e \*\*User/Professional\*\* p/ trocar os inputs de ID por seletores na agenda (+ modelos `Professional`/`Room` dedicados — §6). (2) editar/mover/cancelar agendamento pela UI (backend da S6 já expõe). (3) invalidar cache `rbac:perms` no PERMISSION_CHANGED. (4) mismatch `start`→`dist/src/main.js` (S1). (5) `docker-compose.yml` ainda pendente (subi containers manuais de novo). (6) lockout por conta. Próxima sessão: \*\*S8 — mobile-patient base + EAS\*\* (App do Paciente Expo; build EAS dev em device; paciente vê só as próprias consultas — anti-IDOR; regras de loja §5).
 
 
 

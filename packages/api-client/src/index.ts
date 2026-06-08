@@ -3,6 +3,7 @@
  * segredos: recebe baseUrl e, quando preciso, um token. Usado SERVER-SIDE no
  * `apps/web` (Server Actions / middleware), nunca expõe nada ao browser.
  */
+import type { AppointmentStatus } from "@vero/types";
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -19,6 +20,46 @@ export interface LoginInput {
   tenantSlug: string;
   email: string;
   password: string;
+}
+
+/** Resumo de paciente para seletores na agenda (espelha o model, campos mínimos). */
+export interface PatientSummary {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+/** Agendamento como devolvido pela API (instantes em ISO 8601). */
+export interface Appointment {
+  id: string;
+  unitId: string;
+  professionalId: string;
+  patientId: string;
+  roomId: string | null;
+  startsAt: string;
+  endsAt: string;
+  status: AppointmentStatus;
+  markers: string[];
+  notes: string | null;
+}
+
+/** Filtros da listagem da agenda (todos opcionais). */
+export interface ListAppointmentsParams {
+  from?: string;
+  to?: string;
+  professionalId?: string;
+  unitId?: string;
+}
+
+/** Criação de agendamento (validação real é no DTO do backend, §4). */
+export interface CreateAppointmentInput {
+  unitId: string;
+  professionalId: string;
+  patientId: string;
+  startsAt: string;
+  endsAt: string;
+  roomId?: string;
+  notes?: string;
 }
 
 /** Erro HTTP tipado (status + mensagem segura, sem stack do servidor). */
@@ -76,7 +117,36 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify({ refreshToken }),
       }),
 
-    /** Requisição autenticada genérica (recursos de negócio chegam na S7b). */
+    // --- Recursos de negócio (autenticados via accessToken) ---
+
+    listPatients: (q?: string): Promise<PatientSummary[]> =>
+      request<PatientSummary[]>(
+        baseUrl,
+        `/patients${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+        { accessToken },
+      ),
+
+    listAppointments: (
+      params: ListAppointmentsParams = {},
+    ): Promise<Appointment[]> => {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v) qs.set(k, v);
+      }
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<Appointment[]>(baseUrl, `/appointments${suffix}`, {
+        accessToken,
+      });
+    },
+
+    createAppointment: (input: CreateAppointmentInput): Promise<Appointment> =>
+      request<Appointment>(baseUrl, "/appointments", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    /** Requisição autenticada genérica (escape hatch para recursos ainda sem método). */
     request: <T>(path: string, init?: RequestInit): Promise<T> =>
       request<T>(baseUrl, path, { ...init, accessToken }),
   };

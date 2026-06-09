@@ -510,7 +510,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S9 — mobile-pro base + EAS  ·  \*DIVIDIDA: \[x] S9a (casca Expo+EAS+Sentry) · \[ ] S9b (login de equipe + agenda do dia)\*
+\#### \[x] S9 — mobile-pro base + EAS  ·  \*DIVIDIDA: \[x] S9a (casca Expo+EAS+Sentry) · \[x] S9b (login de equipe + agenda do dia)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1343,6 +1343,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile-pro)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. `expo config` avalia limpo (Vero Pro, `br.com.vero.pro`, 5 plugins). \*\*`expo-doctor` 21/21.\*\* \*\*`npx expo export --platform android` empacotou o app (bundle 5.1MB)\*\* — imports resolvem no pnpm isolado. \*Device-build via EAS = verificação do usuário (sem conta Expo/aparelho aqui).\* Mesmo peer warning não-fatal `react-native-worklets@0.9.1` da S8c.
 
   \- \*Pendências p/ próxima:\* \*\*S9b\*\* — telas de \*\*login de equipe\*\* (`POST /auth/login` com tenantSlug+email+senha; tokens em `expo-secure-store`) e \*\*"agenda do dia"\*\* read-only (`GET /appointments?from=hoje&to=amanhã`, filtrando pela unidade quando houver endpoint de unidades do usuário — hoje o JWT não traz unitId; mostrar o dia do tenant e anotar a limitação, como na S7b). Reusar o padrão de auth-gate/secure-store da S8d. Herdadas: device-build (usuário), worklets peer, endpoint de unidades do profissional, Unit/Professional listagem na web, cache `rbac:perms`, `start` path, docker-compose, lockout.
+
+\- \*\*2026-06-09 · S9b — mobile-pro: login de equipe + agenda do dia (FECHA a S9)\*\*
+
+  \- \*O que foi feito:\* completou o aceite da S9 — o profissional loga e vê a agenda do dia. \*\*Sem backend novo\*\*, reusando o que já existia: `lib/api.ts` (client fetch self-contained) chama `/auth/login` (S3, equipe), `/auth/refresh`, `/auth/logout` e `GET /appointments?from&to` (S6). `lib/auth.tsx` espelha a S8d (AuthProvider, tokens em `expo-secure-store` com chaves próprias `vero_pro_*`, refresh rotativo + signOut fail-closed). `app/_layout.tsx`: AuthProvider + AuthGate deny-by-default (sem sessão→/login). `app/login.tsx` (tenantSlug+email+senha; erro genérico §4). `app/index.tsx` ("agenda do dia" READ-ONLY: calcula a janela do dia LOCAL como instantes UTC e busca `/appointments` nela; lista hora-início–fim + status; refresh-on-401; Sair; estados loading/erro/vazio).
+
+  \- \*Arquivos tocados:\* `apps/mobile-pro/lib/{api.ts,auth.tsx}` (novos), `apps/mobile-pro/app/{_layout.tsx,login.tsx,index.tsx}` (login novo; _layout/index reescritos). \*\*Sem deps novas\*\* (secure-store já entrou na S9a), sem mudança no lockfile/raiz.
+
+  \- \*Decisões:\* client/auth \*\*self-contained\*\* (duplica o padrão da S8d adaptado p/ auth de EQUIPE: `/auth/login` em vez de `/auth/patient/login`) — confirmada a decisão da S9a de não extrair pacote compartilhável agora (resolução de pacote do workspace é frágil no Metro/pnpm isolado). Agenda \*\*read-only\*\* (aceite da S9; criar/mover não é escopo). \*\*Limitação anotada (como na S7b):\* mostra a agenda do dia do TENANT, não filtrada por unidade — o JWT de equipe traz tenantId/roleId mas NÃO unitId, e não há endpoint das unidades do usuário ainda; quando existir, filtrar por `unitId`.\* Itens mostram hora+status (o `GET /appointments` não retorna nome do paciente; nome dependeria de endpoint mais rico).
+
+  \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile-pro)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*`expo-doctor` 21/21.\*\* \*\*`npx expo export --platform android` empacotou o app inteiro pelo Metro\*\* (imports resolvem no pnpm isolado: telas + lib/api + lib/auth + secure-store + sentry + router). Endpoints consumidos (`/auth/login`, `/auth/refresh|logout`, `GET /appointments` com from/to) já validados AO VIVO em S3/S6/S7b. \*\*Falta só (do usuário):\* abrir em device/simulador e logar contra a API (IP da máquina, não `localhost`).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S9 COMPLETA\*\* (e com isso as 4 superfícies — api/web/mobile-patient/mobile-pro — têm base funcional). Próxima no backlog: \*\*S10 — Exclusão de conta\*\* (requisito de loja Apple 5.1.1 + Google: `DELETE /me` soft-delete+anonimização respeitando guarda legal do prontuário; tela nos 2 apps; página web pública). Herdadas: device-build dos 2 apps (usuário), worklets peer, endpoint de unidades do profissional + filtro por unidade no mobile-pro, nome do paciente na agenda, Unit/Professional listagem na web, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout. \*Oportunidade:\* agora que há 2 apps Expo quase idênticos, extrair `@vero/mobile-shared` (api/auth/secure-store/tema) passa a valer o custo.
 
 
 

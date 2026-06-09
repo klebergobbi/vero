@@ -191,6 +191,7 @@ enum AuditAction {
   AUTHZ_DENIED
   SENSITIVE_READ
   PERMISSION_CHANGED
+  ACCOUNT_DELETED
 }
 
 /// Paciente (§6: Patient — origem do lead, indicado_por). Tenant-scoped, soft-delete preparado.

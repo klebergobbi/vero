@@ -524,7 +524,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S10 — Exclusão de conta (requisito de loja)
+\#### \[ ] S10 — Exclusão de conta (requisito de loja)  ·  \*DIVIDIDA: \[x] S10a (backend DELETE /me) · \[ ] S10b (telas nos 2 apps + página web pública)\*
 
 \*\*Depende de:\*\* S3, S8, S9
 
@@ -1355,6 +1355,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile-pro)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*`expo-doctor` 21/21.\*\* \*\*`npx expo export --platform android` empacotou o app inteiro pelo Metro\*\* (imports resolvem no pnpm isolado: telas + lib/api + lib/auth + secure-store + sentry + router). Endpoints consumidos (`/auth/login`, `/auth/refresh|logout`, `GET /appointments` com from/to) já validados AO VIVO em S3/S6/S7b. \*\*Falta só (do usuário):\* abrir em device/simulador e logar contra a API (IP da máquina, não `localhost`).\*
 
   \- \*Pendências p/ próxima:\* \*\*S9 COMPLETA\*\* (e com isso as 4 superfícies — api/web/mobile-patient/mobile-pro — têm base funcional). Próxima no backlog: \*\*S10 — Exclusão de conta\*\* (requisito de loja Apple 5.1.1 + Google: `DELETE /me` soft-delete+anonimização respeitando guarda legal do prontuário; tela nos 2 apps; página web pública). Herdadas: device-build dos 2 apps (usuário), worklets peer, endpoint de unidades do profissional + filtro por unidade no mobile-pro, nome do paciente na agenda, Unit/Professional listagem na web, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout. \*Oportunidade:\* agora que há 2 apps Expo quase idênticos, extrair `@vero/mobile-shared` (api/auth/secure-store/tema) passa a valer o custo.
+
+\- \*\*2026-06-09 · S10a — Exclusão de conta: backend `DELETE /me` (requisito de loja)\*\*  ·  \*S10 DIVIDIDA em S10a (esta) + S10b (telas 2 apps + página web pública)\*
+
+  \- \*O que foi feito:\* `DELETE /me` que o paciente E a equipe usam p/ apagar a PRÓPRIA conta (Apple 5.1.1 + Google, §5). Nova faixa de guard \*\*`@SelfAccount`\*\*: libera qualquer principal autenticado (paciente OU equipe) sem checar permission de papel — mas o handler age só sobre o id do próprio JWT (`@CurrentPrincipal`), nunca um id vindo do cliente (anti-IDOR). `AccountService`: \*\*anonimiza PII + bloqueia login (soft-delete)\*\* — Paciente → name "Paciente removido", cpf/email/birthDate/notes nulos, `passwordHash=null`, `deletedAt`; User → name "Usuário removido", email `removido+{id}@vero.invalid` (mantém único por tenant), `passwordHash` sentinela, `isActive=false`, `deletedAt`. \*\*Guarda anti-lockout:\* recusa (409) excluir o ÚLTIMO gestor ativo do tenant.\* Login/refresh já filtram `deletedAt:null`/`passwordHash`/`isActive` → sessão bloqueada após exclusão. Auditoria \*\*`ACCOUNT_DELETED`\*\* (novo valor no enum `AuditAction`, espelhado em @vero/types; metadata só `{kind}`, sem PII). Agendamentos são mantidos (registro operacional); a guarda legal do prontuário (MedicalRecord, S26) será respeitada quando existir.
+
+  \- \*Arquivos tocados:\* `packages/types/src/rbac.ts` (+`ACCOUNT_DELETED`), `apps/api/prisma/schema.prisma` (+enum) + migration `20260609..._s10_audit_account_deleted` (aditiva, `ALTER TYPE ADD VALUE`), `apps/api/src/common/decorators/self-account.decorator.ts` (novo: `@SelfAccount`+`@CurrentPrincipal`), `apps/api/src/common/guards/permissions.guard.ts` (+faixa self-account), `apps/api/src/auth/{account.service,account.controller}.ts` (novos), `apps/api/src/auth/auth.module.ts` (wiring), teste `apps/api/test/account.service.spec.ts` (5 casos) + `access-control.spec.ts` (+2 da faixa self-account).
+
+  \- \*Decisões:\* `DELETE /me` (não `/account`) num `AccountController` separado do `MeController` (que é `@Patient`) porque o self-delete serve aos DOIS tipos de principal. Ordem das faixas na guard: public → \*\*self-account\*\* → patient → staff. `phone` do paciente vira "" (campo é obrigatório, não pode null). `passwordHash` do User vira sentinela "REMOVED" (nunca verificado — login filtra isActive/deletedAt antes). \*\*Access token (15min) segue válido até expirar\*\* após a exclusão — aceitável (curto); o refresh já é bloqueado. Guarda do último GESTOR evita travar o tenant (decisão de produto além do aceite, mas previne desastre).
+
+  \- \*Verificação:\* `pnpm lint`/`test` (55; +7, 2 skip)/`build`/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*AO VIVO\*\* (PG+Redis efêmeros 5455/6395): \*\*Paciente:\* DELETE /me 200 → re-login 401 → DB anonimizado (name "Paciente removido", cpf/email/senha vazios, soft-deleted) → AuditLog ACCOUNT_DELETED.\* \*\*Equipe:\* revisor é o único GESTOR → 409 (anti-lockout); inserido 2º GESTOR via SQL → DELETE /me 200 → re-login 401 → DB anonimizado+desativado → AuditLog.\* Ambiente efêmero derrubado; `.env`/temporários removidos; árvore limpa.
+
+  \- \*Pendências p/ próxima:\* \*\*S10b\*\* — \*\*tela de exclusão de conta\*\* no mobile-patient e no mobile-pro (confirmar intenção; explicar o que é apagado vs retido por lei; chamar `DELETE /me`; depois `signOut`) + \*\*página web pública de exclusão\*\* (Apple/Google exigem URL pública explicando o processo; pode ser estática no `apps/web`, sem login, linkando o passo a passo). Herdadas: device-build (usuário), prontuário/retenção legal real quando S26 existir, extrair `@vero/mobile-shared`, demais herdadas.
 
 
 

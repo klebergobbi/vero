@@ -127,6 +127,7 @@ export const AUDIT_ACTIONS = [
   "AUTHZ_DENIED",
   "SENSITIVE_READ",
   "PERMISSION_CHANGED",
+  "ACCOUNT_DELETED",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

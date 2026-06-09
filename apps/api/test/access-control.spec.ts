@@ -9,6 +9,7 @@ import { PermissionsGuard } from "../src/common/guards/permissions.guard";
 import { TenantGuard } from "../src/common/guards/tenant.guard";
 import { IS_PATIENT_KEY } from "../src/common/decorators/patient.decorator";
 import { IS_PUBLIC_KEY } from "../src/common/decorators/public.decorator";
+import { IS_SELF_ACCOUNT_KEY } from "../src/common/decorators/self-account.decorator";
 import { TenantScope } from "../src/common/repositories/tenant-scoped.helper";
 import type { PrismaService } from "../src/prisma/prisma.service";
 import type { RedisService } from "../src/redis/redis.service";
@@ -25,12 +26,14 @@ function ctxFor(request: unknown): ExecutionContext {
 function reflectorFor(meta: {
   isPublic?: boolean;
   isPatientRoute?: boolean;
+  isSelfAccount?: boolean;
   permissions?: string[];
 }): Reflector {
   return {
     getAllAndOverride: jest.fn((key: string) => {
       if (key === IS_PUBLIC_KEY) return meta.isPublic;
       if (key === IS_PATIENT_KEY) return meta.isPatientRoute;
+      if (key === IS_SELF_ACCOUNT_KEY) return meta.isSelfAccount;
       return meta.permissions;
     }),
   } as unknown as Reflector;
@@ -89,6 +92,7 @@ describe("PermissionsGuard (deny-by-default)", () => {
   function build(meta: {
     isPublic?: boolean;
     isPatientRoute?: boolean;
+    isSelfAccount?: boolean;
     permissions?: string[];
   }) {
     const audit = { record: jest.fn().mockResolvedValue(undefined) };
@@ -199,6 +203,22 @@ describe("PermissionsGuard (deny-by-default)", () => {
     );
     // Crítico: nunca consulta o DB com roleId ausente (evitaria vazar todas as perms).
     expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rota @SelfAccount: PERMITE qualquer principal autenticado (paciente ou equipe)", async () => {
+    const { guard, prisma } = build({ isSelfAccount: true });
+    await expect(guard.canActivate(ctxFor({ user: patient }))).resolves.toBe(
+      true,
+    );
+    await expect(guard.canActivate(ctxFor({ user }))).resolves.toBe(true);
+    expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rota @SelfAccount: NEGA quando não há principal autenticado", async () => {
+    const { guard } = build({ isSelfAccount: true });
+    await expect(
+      guard.canActivate(ctxFor({ user: undefined })),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it("rota de EQUIPE: NEGA principal sem roleId sem consultar o DB", async () => {

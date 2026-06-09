@@ -3,6 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import type { Env } from "../config/env.validation";
+import { AccountController } from "./account.controller";
+import { AccountService } from "./account.service";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { PatientAuthController } from "./patient-auth.controller";
@@ -23,8 +25,8 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
       }),
     }),
   ],
-  controllers: [AuthController, PatientAuthController],
-  providers: [AuthService, PatientAuthService, JwtStrategy],
+  controllers: [AuthController, PatientAuthController, AccountController],
+  providers: [AuthService, PatientAuthService, AccountService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -13,6 +13,7 @@ import { AuditService, type AuditInput } from "../audit/audit.service";
 import { IS_PATIENT_KEY } from "../decorators/patient.decorator";
 import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
+import { IS_SELF_ACCOUNT_KEY } from "../decorators/self-account.decorator";
 
 // Cache curto das permissions de um papel (evita hit no DB por request).
 const PERMS_CACHE_TTL_SECONDS = 300;
@@ -46,6 +47,20 @@ export class PermissionsGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<PermRequest>();
     const user = req.user;
+
+    // Faixa SELF-ACCOUNT: ação na própria conta (ex.: exclusão). Qualquer principal
+    // autenticado (paciente OU equipe) pode; o handler age só sobre o próprio id.
+    const isSelfAccount = this.reflector.getAllAndOverride<boolean>(
+      IS_SELF_ACCOUNT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (isSelfAccount) {
+      if (!user) {
+        await this.recordDenial(user, req.ip, "self-account:sem-principal");
+        throw new ForbiddenException();
+      }
+      return true;
+    }
 
     // Faixa do APP DO PACIENTE: exige principal de paciente; sem checagem de papel.
     const isPatientRoute = this.reflector.getAllAndOverride<boolean>(

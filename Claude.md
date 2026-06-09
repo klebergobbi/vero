@@ -510,7 +510,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S9 — mobile-pro base + EAS
+\#### \[ ] S9 — mobile-pro base + EAS  ·  \*DIVIDIDA: \[x] S9a (casca Expo+EAS+Sentry) · \[ ] S9b (login de equipe + agenda do dia)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1331,6 +1331,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*`expo-doctor` 21/21\*\*. \*\*Verificação forte sem device:\* `npx expo export --platform android` EMPACOTOU o app inteiro pelo Metro (bundle 5.1MB) — prova que TODOS os imports resolvem no pnpm isolado e que o app compila (telas + lib/api + lib/auth + secure-store + sentry + router).\* Os endpoints consumidos (`/auth/patient/login`, `/me/appointments`) já tinham sido validados AO VIVO nas S8a/S8b. \*\*Falta só (do usuário):\* abrir em device/simulador via `expo start`/EAS e logar contra a API (precisa do IP da máquina, não `localhost`) — não tenho device/conta Expo p/ isso.\*
 
   \- \*Pendências p/ próxima:\* \*\*S8 COMPLETA.\*\* Próxima no backlog: \*\*S9 — mobile-pro base + EAS\*\* (App do Profissional; mesmo padrão de loja; agenda do dia read-only da unidade). Considerar extrair o que é comum (client/auth/secure-store, tema) p/ um pacote compartilhável quando o mobile-pro chegar. Herdadas: device-build do paciente (usuário), worklets peer, exclusão de conta (S10, é requisito de loja antes de submeter), Unit/Professional listagem + seletores na agenda web, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
+
+\- \*\*2026-06-09 · S9a — mobile-pro base (scaffold Expo + EAS + Sentry)\*\*  ·  \*S9 DIVIDIDA em S9a (esta) + S9b (login + agenda do dia)\*
+
+  \- \*O que foi feito:\* nasceu o \*\*App do Profissional\*\* (`apps/mobile-pro`), 5ª superfície, no MESMO padrão da casca do paciente (S8c). Scaffold via `create-expo-app` (Expo SDK 56) convertido p/ Expo Router. `app.config.ts` (fonte única, sem app.json): name \*\*"Vero Pro"\*\*, scheme `vero-pro`, bundle/package \*\*`br.com.vero.pro`\*\* (§0), variação escura da marca (`#0d1b2a`), plugins router/secure-store/splash/build-properties/sentry, targets de loja (Android targetSdk/compileSdk 36 + iOS deploymentTarget 16.4). `eas.json` dev(APK)/preview/production(AAB). Sentry init no `_layout` via `EXPO_PUBLIC_SENTRY_DSN` (chave pública, sem segredo no bundle, §5). `metro.config.js` p/ monorepo. `app/index.tsx` tela base da marca (App Pro). \*\*Sem backend novo:\* o profissional é um `User` de equipe → na S9b reusa `/auth/login` (S3) + `GET /appointments` (S6, tenant-scoped).\*
+
+  \- \*Arquivos tocados:\* `apps/mobile-pro/{package.json,app.config.ts,eas.json,babel.config.js,metro.config.js,tsconfig.json,.env.example,.gitignore,app/_layout.tsx,app/index.tsx,assets/*}` (novos) + `pnpm-lock.yaml`. \*\*Sem mudança em api/web/mobile-patient nem nos overrides da raiz\*\* (o conjunto de deps SDK 56 já estava estabilizado pela S8; reusei as mesmas versões, então `pnpm install` não mexeu em mais nada).
+
+  \- \*Decisões:\* `package.json` autorado direto com o conjunto SDK 56 já validado na S8 (evita o vai-e-vem do `expo install`). `expo-secure-store` já incluído agora (a S9b vai precisar p/ os tokens de equipe) → 1 só install. Mantido o pnpm \*\*isolado\*\* (mobile-pro recebe React próprio aninhado, sem colidir com web) e TS pinado `^5.6.3` (`expo.install.exclude`). App Pro em variação ESCURA/sólida da marca (§0). \*Decisão deixada p/ S9b:\* manter o app \*\*self-contained\*\* (duplicar o `lib/api`+`lib/auth` adaptados p/ auth de equipe) OU extrair um pacote compartilhável `@vero/mobile-shared` — duplicar é mais seguro p/ o Metro (resolução de pacote do workspace é a área frágil no pnpm isolado); pacote compartilhável fica como melhoria futura.
+
+  \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile-pro)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. `expo config` avalia limpo (Vero Pro, `br.com.vero.pro`, 5 plugins). \*\*`expo-doctor` 21/21.\*\* \*\*`npx expo export --platform android` empacotou o app (bundle 5.1MB)\*\* — imports resolvem no pnpm isolado. \*Device-build via EAS = verificação do usuário (sem conta Expo/aparelho aqui).\* Mesmo peer warning não-fatal `react-native-worklets@0.9.1` da S8c.
+
+  \- \*Pendências p/ próxima:\* \*\*S9b\*\* — telas de \*\*login de equipe\*\* (`POST /auth/login` com tenantSlug+email+senha; tokens em `expo-secure-store`) e \*\*"agenda do dia"\*\* read-only (`GET /appointments?from=hoje&to=amanhã`, filtrando pela unidade quando houver endpoint de unidades do usuário — hoje o JWT não traz unitId; mostrar o dia do tenant e anotar a limitação, como na S7b). Reusar o padrão de auth-gate/secure-store da S8d. Herdadas: device-build (usuário), worklets peer, endpoint de unidades do profissional, Unit/Professional listagem na web, cache `rbac:perms`, `start` path, docker-compose, lockout.
 
 
 

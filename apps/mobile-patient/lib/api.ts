@@ -75,4 +75,8 @@ export const api = {
 
   myAppointments: (accessToken: string): Promise<Appointment[]> =>
     request<Appointment[]>("/me/appointments", { accessToken }),
+
+  /** Exclui a própria conta (anonimiza + bloqueia login — §5 loja). */
+  deleteAccount: (accessToken: string): Promise<{ ok: boolean }> =>
+    request<{ ok: boolean }>("/me", { method: "DELETE", accessToken }),
 };

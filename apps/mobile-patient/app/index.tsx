@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -112,12 +113,22 @@ export default function Home() {
           )}
         />
       )}
+
+      <Link href="/delete-account" style={styles.footerLink}>
+        Excluir minha conta
+      </Link>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#14283d" },
+  footerLink: {
+    color: "#9fb3c8",
+    fontSize: 13,
+    textAlign: "center",
+    paddingVertical: 14,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

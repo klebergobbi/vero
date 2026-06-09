@@ -524,7 +524,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S10 — Exclusão de conta (requisito de loja)  ·  \*DIVIDIDA: \[x] S10a (backend DELETE /me) · \[ ] S10b (telas nos 2 apps + página web pública)\*
+\#### \[x] S10 — Exclusão de conta (requisito de loja)  ·  \*DIVIDIDA: \[x] S10a (backend DELETE /me) · \[x] S10b (telas nos 2 apps + página web pública)\*
 
 \*\*Depende de:\*\* S3, S8, S9
 
@@ -1368,9 +1368,17 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
   \- \*Pendências p/ próxima:\* \*\*S10b\*\* — \*\*tela de exclusão de conta\*\* no mobile-patient e no mobile-pro (confirmar intenção; explicar o que é apagado vs retido por lei; chamar `DELETE /me`; depois `signOut`) + \*\*página web pública de exclusão\*\* (Apple/Google exigem URL pública explicando o processo; pode ser estática no `apps/web`, sem login, linkando o passo a passo). Herdadas: device-build (usuário), prontuário/retenção legal real quando S26 existir, extrair `@vero/mobile-shared`, demais herdadas.
 
+\- \*\*2026-06-09 · S10b — Exclusão de conta: telas nos 2 apps + página web pública (FECHA a S10)\*\*
 
+  \- \*O que foi feito:\* fechou o requisito de loja com a UI nas 3 superfícies de cliente. \*\*mobile-patient\*\* e \*\*mobile-pro\*\*: `lib/api.ts` +`deleteAccount` (DELETE /me); nova tela `app/delete-account.tsx` (explica o que é apagado vs retido por lei, confirma via `Alert` nativo, chama `DELETE /me` com refresh-on-401, depois `signOut`); link "Excluir minha conta" no rodapé da tela inicial (`Link` do expo-router). O app pro trata o \*\*409 do último gestor\*\* com mensagem específica ("transfira a gestão antes"). \*\*apps/web\*\*: página PÚBLICA `app/exclusao-de-conta/page.tsx` (estática, sem login) com o passo a passo + o que é apagado/retido + contato; `middleware.ts` libera a rota (added a `PUBLIC_PATHS`) e ajustado p/ só redirecionar logado→/agenda no `/login` (a página de exclusão fica acessível logado ou não).
 
-\---
+  \- \*Arquivos tocados:\* `apps/mobile-patient/{lib/api.ts,app/index.tsx,app/delete-account.tsx}`, `apps/mobile-pro/{lib/api.ts,app/index.tsx,app/delete-account.tsx}`, `apps/web/{app/exclusao-de-conta/page.tsx,middleware.ts}`. \*\*Sem backend novo\*\* (consome o `DELETE /me` da S10a) e sem deps novas.
+
+  \- \*Decisões:\* confirmação via `Alert` destrutivo nativo (padrão das lojas, sem digitar nada — simples). Após sucesso, `signOut()` local (a sessão já foi bloqueada no backend). A página web é o \*\*método in-app documentado\*\* (a exclusão acontece no app; a URL pública explica o processo e dá um e-mail de fallback) — atende Apple 5.1.1 + Google sem precisar de fluxo de exclusão self-service no web (que exigiria login). Link de exclusão no rodapé da home dos apps (visível/acessível, exigência Apple).
+
+  \- \*Verificação:\* `pnpm lint`/`test` (55)/`build`/`format:check`/`audit` \*\*zero vulns\*\* — verdes. Typecheck dos 2 apps OK; \*\*`expo export` empacotou os DOIS apps\*\* (telas de exclusão + Link resolvem no Metro). \*\*AO VIVO (web):\* `/exclusao-de-conta` responde \*\*200 sem login\*\* (com o conteúdo certo) e `/agenda` segue protegida (\*\*307→/login\*\*) — o guard continua deny-by-default.\* O `DELETE /me` em si já foi validado ao vivo na S10a. \*Falta só (do usuário):\* exercer o fluxo de exclusão em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S10 COMPLETA.\*\* Próxima no backlog: \*\*S11 — Confirmação de consulta\*\* (paciente confirma presença pelo app; `ConfirmationEvent` idempotente; status reflete na agenda web). Herdadas: device-build dos apps (usuário), prontuário/retenção legal real (S26), extrair `@vero/mobile-shared` (agora MUITO duplicado entre os 2 apps), endpoint de unidades + filtro no mobile-pro, nome do paciente na agenda, Unit/Professional listagem na web, cache `rbac:perms`, `start` path, docker-compose, lockout.
 
 
 

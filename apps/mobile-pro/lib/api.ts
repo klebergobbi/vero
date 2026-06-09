@@ -86,4 +86,8 @@ export const api = {
       `/appointments?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`,
       { accessToken },
     ),
+
+  /** Exclui a própria conta (anonimiza + bloqueia login — §5 loja). */
+  deleteAccount: (accessToken: string): Promise<{ ok: boolean }> =>
+    request<{ ok: boolean }>("/me", { method: "DELETE", accessToken }),
 };

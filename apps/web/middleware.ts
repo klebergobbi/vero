@@ -8,7 +8,9 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const ACCESS_COOKIE = "vero_at";
 const REFRESH_COOKIE = "vero_rt";
-const PUBLIC_PATHS = ["/login"];
+// Rotas públicas (sem sessão): login e a página de exclusão de conta exigida
+// pelas lojas (Apple 5.1.1 / Google), que precisa de URL pública sem autenticação.
+const PUBLIC_PATHS = ["/login", "/exclusao-de-conta"];
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:3333";
 const isProd = process.env.NODE_ENV === "production";
 
@@ -31,8 +33,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   const refresh = req.cookies.get(REFRESH_COOKIE)?.value;
 
   if (isPublic) {
-    // Já autenticado em /login → manda para a agenda.
-    if (access) return NextResponse.redirect(new URL("/agenda", req.url));
+    // Já autenticado visitando /login → manda para a agenda. Outras rotas
+    // públicas (ex.: exclusão de conta) ficam acessíveis logado ou não.
+    const isLogin = pathname === "/login" || pathname.startsWith("/login/");
+    if (isLogin && access) {
+      return NextResponse.redirect(new URL("/agenda", req.url));
+    }
     return NextResponse.next();
   }
 

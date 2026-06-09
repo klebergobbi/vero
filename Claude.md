@@ -496,7 +496,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S8 — mobile-patient base + EAS  ·  \*DIVIDIDA: \[x] S8a (auth do paciente — backend) · \[x] S8b (/me/consultas + faixa de guard) · \[x] S8c (casca Expo+EAS) · \[ ] S8d (login + minhas consultas)\*
+\#### \[x] S8 — mobile-patient base + EAS  ·  \*DIVIDIDA: \[x] S8a (auth do paciente — backend) · \[x] S8b (/me/consultas + faixa de guard) · \[x] S8c (casca Expo+EAS) · \[x] S8d (login + minhas consultas)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1319,6 +1319,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — todos verdes. `npx expo config --json` avalia limpo (name Vero, bundle correto, 4 plugins, apiBaseUrl). \*\*`expo-doctor` 21/21\*\*. \*\*NÃO\*\* há como eu rodar `eas build`/abrir em device aqui (exige conta Expo/EAS + aparelho) — \*\*verificação do build em device físico é do usuário\*\* (aceite original da S8). Nada efêmero a derrubar nesta sessão (só install).
 
   \- \*Pendências p/ próxima:\* \*\*S8d\*\* — telas de \*\*login\*\* (consumindo `POST /auth/patient/login`, guardar tokens com `expo-secure-store`) e \*\*"minhas consultas"\*\* (`GET /me/appointments`, anti-IDOR já garantido no backend). Sugiro um `lib/api` no app reusando os contratos (ou um client leve). Para testar ao vivo em device, a API precisa do IP da máquina (não `localhost`). \*\*S8 fecha na S8d.\*\* Herdadas: device-build (usuário), worklets peer, Unit/Professional listagem, cache `rbac:perms`, `start` path, docker-compose, lockout.
+
+\- \*\*2026-06-08 · S8d — App do Paciente: login + "minhas consultas" (FECHA a S8)\*\*
+
+  \- \*O que foi feito:\* completou o aceite da S8 — o paciente loga e vê só as próprias consultas. `lib/api.ts` (client fetch self-contained — NÃO importa pacote do workspace, p/ evitar resolução de symlink no Metro): `login`/`refresh`/`logout` (`/auth/patient/*`) + `myAppointments` (`/me/appointments`); baseUrl de `EXPO_PUBLIC_API_URL`. `lib/auth.tsx` (AuthProvider/`useAuth`): tokens em \*\*`expo-secure-store`\*\* (Keychain/Keystore — §5), `signIn/signOut/refresh`; refresh rotativo, e em falha de refresh faz signOut (fail-closed). `app/_layout.tsx`: AuthProvider + \*\*AuthGate\*\* (deny-by-default: sem sessão→/login; logado em /login→/) + Sentry. `app/login.tsx` (tenantSlug + CPF/e-mail + senha; erro genérico espelhando o backend §4). `app/index.tsx` ("minhas consultas": lista de `/me/appointments`, refresh-on-401 com retry único, botão Sair, estados loading/erro/vazio).
+
+  \- \*Arquivos tocados:\* `apps/mobile-patient/lib/{api.ts,auth.tsx}` (novos), `apps/mobile-patient/app/{_layout.tsx,login.tsx,index.tsx}` (login novo; _layout/index reescritos), `apps/mobile-patient/app.config.ts` (+plugin `expo-secure-store`), `apps/mobile-patient/package.json` (+`expo-secure-store`) + `pnpm-lock.yaml`.
+
+  \- \*Decisões:\* client HTTP \*\*self-contained\*\* no app (não reusa `@vero/api-client`) — de propósito, p/ não arrastar resolução de pacote do workspace pelo Metro (área frágil no pnpm isolado) e porque o api-client não tem o fluxo de paciente. `expo-secure-store` (não AsyncStorage) p/ os tokens (§5). Padrão de auth-gate do Expo Router via `useSegments`+`useRouter`. Refresh-on-401 simples (1 retry) — sem interceptor global (§8 simplicidade).
+
+  \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile)/`test` (46)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*`expo-doctor` 21/21\*\*. \*\*Verificação forte sem device:\* `npx expo export --platform android` EMPACOTOU o app inteiro pelo Metro (bundle 5.1MB) — prova que TODOS os imports resolvem no pnpm isolado e que o app compila (telas + lib/api + lib/auth + secure-store + sentry + router).\* Os endpoints consumidos (`/auth/patient/login`, `/me/appointments`) já tinham sido validados AO VIVO nas S8a/S8b. \*\*Falta só (do usuário):\* abrir em device/simulador via `expo start`/EAS e logar contra a API (precisa do IP da máquina, não `localhost`) — não tenho device/conta Expo p/ isso.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S8 COMPLETA.\*\* Próxima no backlog: \*\*S9 — mobile-pro base + EAS\*\* (App do Profissional; mesmo padrão de loja; agenda do dia read-only da unidade). Considerar extrair o que é comum (client/auth/secure-store, tema) p/ um pacote compartilhável quando o mobile-pro chegar. Herdadas: device-build do paciente (usuário), worklets peer, exclusão de conta (S10, é requisito de loja antes de submeter), Unit/Professional listagem + seletores na agenda web, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
 
 
 

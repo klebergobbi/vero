@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/react-native";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { AuthProvider, useAuth } from "../lib/auth";
 
 /**
  * Layout raiz do App do Paciente. Inicializa o Sentry (crash reporting, §5) —
@@ -9,17 +11,35 @@ import { StatusBar } from "expo-status-bar";
  */
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  // Sem PII por padrão (§4 observabilidade); ajustar amostragem em produção.
-  sendDefaultPii: false,
+  sendDefaultPii: false, // sem PII por padrão (§4 observabilidade)
   enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
 });
 
+/** Gate deny-by-default: sem sessão → /login; logado em /login → agenda. */
+function AuthGate() {
+  const { accessToken, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+    const onLogin = segments[0] === "login";
+    if (!accessToken && !onLogin) {
+      router.replace("/login");
+    } else if (accessToken && onLogin) {
+      router.replace("/");
+    }
+  }, [accessToken, isLoading, segments, router]);
+
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
+
 function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }} />
-    </>
+      <AuthGate />
+    </AuthProvider>
   );
 }
 

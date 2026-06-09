@@ -7,6 +7,7 @@ import type { Reflector } from "@nestjs/core";
 import type { AuditService } from "../src/common/audit/audit.service";
 import { PermissionsGuard } from "../src/common/guards/permissions.guard";
 import { TenantGuard } from "../src/common/guards/tenant.guard";
+import { IS_PATIENT_KEY } from "../src/common/decorators/patient.decorator";
 import { IS_PUBLIC_KEY } from "../src/common/decorators/public.decorator";
 import { TenantScope } from "../src/common/repositories/tenant-scoped.helper";
 import type { PrismaService } from "../src/prisma/prisma.service";
@@ -23,12 +24,15 @@ function ctxFor(request: unknown): ExecutionContext {
 
 function reflectorFor(meta: {
   isPublic?: boolean;
+  isPatientRoute?: boolean;
   permissions?: string[];
 }): Reflector {
   return {
-    getAllAndOverride: jest.fn((key: string) =>
-      key === IS_PUBLIC_KEY ? meta.isPublic : meta.permissions,
-    ),
+    getAllAndOverride: jest.fn((key: string) => {
+      if (key === IS_PUBLIC_KEY) return meta.isPublic;
+      if (key === IS_PATIENT_KEY) return meta.isPatientRoute;
+      return meta.permissions;
+    }),
   } as unknown as Reflector;
 }
 
@@ -82,7 +86,11 @@ describe("TenantGuard", () => {
 });
 
 describe("PermissionsGuard (deny-by-default)", () => {
-  function build(meta: { isPublic?: boolean; permissions?: string[] }) {
+  function build(meta: {
+    isPublic?: boolean;
+    isPatientRoute?: boolean;
+    permissions?: string[];
+  }) {
     const audit = { record: jest.fn().mockResolvedValue(undefined) };
     const redis = { get: jest.fn(), set: jest.fn() };
     const prisma = {
@@ -159,6 +167,45 @@ describe("PermissionsGuard (deny-by-default)", () => {
     const { guard, prisma } = build({ isPublic: true });
     await expect(guard.canActivate(ctxFor({ user: undefined }))).resolves.toBe(
       true,
+    );
+    expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
+  });
+
+  // --- Faixa do App do Paciente (S8b) ---
+  const patient = { kind: "patient", patientId: "p1", tenantId: "t1" };
+
+  it("rota @Patient: PERMITE principal de paciente sem checar papel", async () => {
+    const { guard, prisma } = build({ isPatientRoute: true });
+    await expect(guard.canActivate(ctxFor({ user: patient }))).resolves.toBe(
+      true,
+    );
+    expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rota @Patient: NEGA token de equipe (não é principal de paciente)", async () => {
+    const { guard, audit } = build({ isPatientRoute: true });
+    await expect(guard.canActivate(ctxFor({ user }))).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "AUTHZ_DENIED" }),
+    );
+  });
+
+  it("rota de EQUIPE: NEGA principal de paciente ANTES de qualquer query (endurecimento)", async () => {
+    const { guard, prisma } = build({ permissions: ["appointment:read"] });
+    await expect(guard.canActivate(ctxFor({ user: patient }))).rejects.toThrow(
+      ForbiddenException,
+    );
+    // Crítico: nunca consulta o DB com roleId ausente (evitaria vazar todas as perms).
+    expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
+  });
+
+  it("rota de EQUIPE: NEGA principal sem roleId sem consultar o DB", async () => {
+    const { guard, prisma } = build({ permissions: ["appointment:read"] });
+    const noRole = { tenantId: "t1", userId: "u9" }; // roleId ausente
+    await expect(guard.canActivate(ctxFor({ user: noRole }))).rejects.toThrow(
+      ForbiddenException,
     );
     expect(prisma.rolePermission.findMany).not.toHaveBeenCalled();
   });

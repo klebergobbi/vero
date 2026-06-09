@@ -5,11 +5,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import type { AuthenticatedUser } from "../../auth/strategies/jwt.strategy";
+import type { Principal } from "../../auth/strategies/jwt.strategy";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
 interface TenantRequest {
-  user?: AuthenticatedUser;
+  user?: Principal;
   tenantId?: string;
 }
 

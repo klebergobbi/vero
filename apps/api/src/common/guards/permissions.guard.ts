@@ -6,10 +6,11 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { PermissionKey } from "@vero/types";
-import type { AuthenticatedUser } from "../../auth/strategies/jwt.strategy";
+import type { Principal } from "../../auth/strategies/jwt.strategy";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService, type AuditInput } from "../audit/audit.service";
+import { IS_PATIENT_KEY } from "../decorators/patient.decorator";
 import { PERMISSIONS_KEY } from "../decorators/permissions.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
@@ -17,7 +18,7 @@ import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 const PERMS_CACHE_TTL_SECONDS = 300;
 
 interface PermRequest {
-  user?: AuthenticatedUser;
+  user?: Principal;
   ip?: string;
 }
 
@@ -43,19 +44,42 @@ export class PermissionsGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
+    const req = context.switchToHttp().getRequest<PermRequest>();
+    const user = req.user;
+
+    // Faixa do APP DO PACIENTE: exige principal de paciente; sem checagem de papel.
+    const isPatientRoute = this.reflector.getAllAndOverride<boolean>(
+      IS_PATIENT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (isPatientRoute) {
+      if (user?.kind !== "patient") {
+        await this.recordDenial(
+          user,
+          req.ip,
+          "rota-paciente:principal-invalido",
+        );
+        throw new ForbiddenException();
+      }
+      return true;
+    }
+
+    // --- Rota de EQUIPE (deny-by-default) ---
     const required = this.reflector.getAllAndOverride<PermissionKey[]>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],
     );
-    const req = context.switchToHttp().getRequest<PermRequest>();
-    const user = req.user;
 
     // Deny-by-default: rota protegida sem permissão declarada é negada.
     if (!required || required.length === 0) {
       await this.recordDenial(user, req.ip, "rota-sem-permissao-declarada");
       throw new ForbiddenException();
     }
-    if (!user) {
+    // ENDURECIMENTO (S8b): um paciente (ou principal sem roleId) NUNCA satisfaz
+    // rota de equipe — sem isto, roleId ausente faria o Prisma omitir o filtro e
+    // retornar TODAS as permissions do tenant. Negar antes de qualquer query.
+    if (!user || user.kind === "patient" || !user.roleId) {
+      await this.recordDenial(user, req.ip, required.join(","));
       throw new ForbiddenException();
     }
 
@@ -69,7 +93,7 @@ export class PermissionsGuard implements CanActivate {
   }
 
   private async recordDenial(
-    user: AuthenticatedUser | undefined,
+    user: Principal | undefined,
     ip: string | undefined,
     required: string,
   ): Promise<void> {
@@ -77,8 +101,11 @@ export class PermissionsGuard implements CanActivate {
     const input: AuditInput = {
       tenantId: user.tenantId,
       action: "AUTHZ_DENIED",
-      actorId: user.userId,
-      metadata: { required, roleId: user.roleId },
+      actorId: user.kind === "patient" ? user.patientId : user.userId,
+      metadata:
+        user.kind === "patient"
+          ? { required, kind: "patient" }
+          : { required, roleId: user.roleId },
     };
     if (ip !== undefined) input.ip = ip;
     await this.audit.record(input);

@@ -496,7 +496,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S8 — mobile-patient base + EAS  ·  \*DIVIDIDA: \[x] S8a (auth do paciente — backend) · \[ ] S8b (/me/consultas + faixa de guard) · \[ ] S8c (casca Expo+EAS) · \[ ] S8d (login + minhas consultas)\*
+\#### \[ ] S8 — mobile-patient base + EAS  ·  \*DIVIDIDA: \[x] S8a (auth do paciente — backend) · \[x] S8b (/me/consultas + faixa de guard) · \[ ] S8c (casca Expo+EAS) · \[ ] S8d (login + minhas consultas)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1295,6 +1295,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (44; 5 novos, 2 skip de DB)/`build`/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*AO VIVO\*\* (PG+Redis efêmeros 5455/6395, API real): 8/8 — login por CPF 200, por e-mail 200, senha errada 401 genérico, \*\*token de paciente barrado (401) em /appointments e /patients\*\*, refresh rotaciona 200, reuso do antigo 401, logout 204, refresh pós-logout 401. Ambiente efêmero derrubado; `.env`/temporários removidos; árvore limpa.
 
   \- \*Pendências p/ próxima (S8b):\* (1) \*\*`GET /me/appointments`\*\* owner+tenant-scoped (anti-IDOR: paciente só vê as próprias consultas) + faixa de guard do paciente: `@Patient` decorator, `JwtStrategy` aceitando `patient-access` (com `kind:'patient'`), e o \*\*endurecimento da `PermissionsGuard`\*\* descrito acima. (2) depois: \*\*S8c\*\* (scaffold Expo + EAS + app.config + Sentry, §5) e \*\*S8d\*\* (telas login + "minhas consultas"). Herdadas: Unit/Professional listagem, editar/mover/cancelar na UI, cache `rbac:perms`, `start` path, docker-compose, lockout. Conta demo do app do paciente documentar nas notas de revisão de loja (§5).
+
+\- \*\*2026-06-08 · S8b — `/me/appointments` (anti-IDOR) + faixa de guard do paciente\*\*
+
+  \- \*O que foi feito:\* o paciente autenticado passa a enxergar SÓ as próprias consultas, sem abrir brecha no RBAC de equipe. `JwtStrategy` agora discrimina por `type` e devolve um \*\*principal tipado\*\* (`Principal = AuthenticatedUser{kind:'staff'} | AuthenticatedPatient{kind:'patient'}`): `access`→equipe, `patient-access`→paciente, qualquer outro→401. Novo `@Patient()` (marca rota do app do paciente) + `@PatientId()` (injeta o patientId do principal, fail-closed). `PermissionsGuard` ganhou \*\*duas faixas\*\*: rota `@Patient` exige principal de paciente (sem checar papel); rota de equipe agora \*\*nega explicitamente\*\* quando `!user || kind==='patient' || !roleId` ANTES de qualquer query — \*\*fecha o latente da S8a\*\* (roleId ausente faria o Prisma omitir o filtro e vazar todas as permissions do tenant). `recordDenial` lida com o union (actorId = patientId|userId; metadata sem PII). Módulo `me`: `MeController` (`@Patient`, `GET /me/appointments`) + `MeService` (query via `TenantScope.ownerWhere(patientId, …, 'patientId')` — tenant+owner).
+
+  \- \*Arquivos tocados:\* `apps/api/src/common/decorators/patient.decorator.ts` (novo: `@Patient`+`@PatientId`), `apps/api/src/auth/strategies/jwt.strategy.ts` (principal discriminado), `apps/api/src/common/guards/permissions.guard.ts` (2 faixas + endurecimento + recordDenial union), `apps/api/src/common/guards/tenant.guard.ts` (tipo→`Principal`), `apps/api/src/me/{me.controller,me.service,me.module}.ts` (novos), `apps/api/src/app.module.ts` (+MeModule), teste `apps/api/test/access-control.spec.ts` (+4 casos da faixa do paciente). \*\*Sem migration\*\* (S8a já criou `passwordHash`).
+
+  \- \*Decisões:\* o endurecimento testa `!roleId`/`kind==='patient'` (não exige `kind==='staff'` literal) → os mocks legados de staff (sem `kind`, com `roleId`) seguem passando. `MeService` usa o helper anti-IDOR da S4 (não duplica lógica). `tenantId` continua vindo do `TenantGuard` (paciente também tem `tenantId` no JWT, então a cadeia global vale sem exceção). Mantida a ordem dos guards (Throttler→Jwt→Tenant→Permissions).
+
+  \- \*Verificação:\* `pnpm lint`/`test` (46; 4 novos, 2 skip)/`build`/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*AO VIVO\*\* (PG+Redis efêmeros 5455/6395): cenário com paciente demo + paciente B, cada um com 1 consulta. (6) `GET /me/appointments` como paciente demo → \*\*count=1, só `demo-patient`\*\* (NÃO vê a de B) — anti-IDOR provado. (7) token de equipe em `/me/appointments` → \*\*403\*\*. (8) token de paciente em `/appointments` e `/patients` → \*\*403\*\* (endurecimento; antes vazaria). AuditLog conferido no Postgres: negações gravaram `AUTHZ_DENIED` corretas (paciente→actorId=patientId+`kind:patient`; staff→actorId=userId+roleId), sem PII. Ambiente efêmero derrubado; `.env`/temporários removidos; árvore limpa.
+
+  \- \*Pendências p/ próxima:\* \*\*S8c\*\* — scaffold `apps/mobile-patient` (Expo Router) + `app.config.ts` (bundle `br.com.vero.paciente`, ícone/splash, permissões mínimas + iOS usage strings, targetSdk 36/iOS 26) + `eas.json` (dev/preview/production) + Sentry (§5). Depois \*\*S8d\*\* (telas login + "minhas consultas" consumindo `/auth/patient/login` e `/me/appointments`). \*Nota:\* `eas build` exige conta Expo/EAS + device — verificação do build em device é do usuário (não tenho como rodar). Herdadas: Unit/Professional listagem + seletores na agenda, editar/mover/cancelar na UI, cache `rbac:perms` no PERMISSION_CHANGED, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout por conta.
 
 
 

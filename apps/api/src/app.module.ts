@@ -1,10 +1,30 @@
 import { randomUUID } from "node:crypto";
+import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import type { IncomingMessage } from "node:http";
+import { WhatsAppModule } from "./integrations/whatsapp/whatsapp.module";
+
+/**
+ * Converte a REDIS_URL em opções de conexão do BullMQ. Passamos opções (não uma
+ * instância ioredis) p/ o BullMQ criar seu próprio cliente — evita o clash de tipos
+ * entre versões de ioredis na árvore. maxRetriesPerRequest:null é exigência do BullMQ.
+ */
+function bullConnection(url: string) {
+  const u = new URL(url);
+  return {
+    host: u.hostname,
+    port: u.port ? Number(u.port) : 6379,
+    maxRetriesPerRequest: null,
+    ...(u.username ? { username: u.username } : {}),
+    ...(u.password ? { password: u.password } : {}),
+    ...(u.pathname.length > 1 ? { db: Number(u.pathname.slice(1)) } : {}),
+    ...(u.protocol === "rediss:" ? { tls: {} } : {}),
+  };
+}
 import { AppointmentModule } from "./appointment/appointment.module";
 import { AuthModule } from "./auth/auth.module";
 import { AuditModule } from "./common/audit/audit.module";
@@ -66,6 +86,22 @@ import { RedisModule } from "./redis/redis.module";
       { name: "global", ttl: 15 * 60 * 1000, limit: 100 },
     ]),
 
+    // Filas BullMQ (CLAUDE.md §7). Conexão própria ao Redis com
+    // maxRetriesPerRequest:null (exigência do BullMQ p/ comandos bloqueantes do
+    // worker). defaultJobOptions impõe idempotência-amigável + retry/backoff/DLQ.
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        connection: bullConnection(config.get("REDIS_URL", { infer: true })),
+        defaultJobOptions: {
+          attempts: 5,
+          backoff: { type: "exponential", delay: 30_000 },
+          removeOnComplete: 1000,
+          removeOnFail: false,
+        },
+      }),
+    }),
+
     PrismaModule,
     RedisModule,
     AuditModule,
@@ -74,6 +110,7 @@ import { RedisModule } from "./redis/redis.module";
     PatientModule,
     AppointmentModule,
     MeModule,
+    WhatsAppModule,
   ],
   providers: [
     // Ordem importa: rate limit → autenticação → tenant → autorização (deny-by-default).

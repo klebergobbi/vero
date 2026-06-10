@@ -14,6 +14,16 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET deve ter ao menos 32 caracteres"),
   // Lista separada por vírgula de origens permitidas no CORS (nunca "*" com credenciais).
   CORS_ORIGINS: z.string().min(1, "CORS_ORIGINS é obrigatório"),
+
+  // Integração WhatsApp (Evolution API) — segredos SÓ no backend (CLAUDE.md §7).
+  // Opcionais: a API sobe sem elas, mas qualquer envo falha fechado (ServiceUnavailable)
+  // até estarem configuradas. EVOLUTION_API_URL nunca recebe input do usuário (anti-SSRF).
+  EVOLUTION_API_URL: z
+    .string()
+    .url("EVOLUTION_API_URL deve ser uma URL válida")
+    .optional(),
+  EVOLUTION_API_KEY: z.string().min(1).optional(),
+  EVOLUTION_INSTANCE: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

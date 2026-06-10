@@ -30,9 +30,10 @@ model Tenant {
   userUnits       UserUnit[]
   rolePermissions RolePermission[]
   auditLogs       AuditLog[]
-  patients        Patient[]
-  appointments    Appointment[]
-  availabilities  Availability[]
+  patients         Patient[]
+  appointments     Appointment[]
+  availabilities   Availability[]
+  confirmationEvents ConfirmationEvent[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -259,15 +260,34 @@ model Appointment {
   updatedAt      DateTime          @updatedAt
   deletedAt      DateTime?
 
-  tenant       Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  unit         Unit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  professional User    @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
-  patient      Patient @relation(fields: [patientId], references: [id])
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit         Unit                @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  professional User                @relation("ProfessionalAppointments", fields: [professionalId], references: [id])
+  patient      Patient             @relation(fields: [patientId], references: [id])
+  confirmations ConfirmationEvent[]
 
   @@index([tenantId, professionalId, startsAt])
   @@index([tenantId, unitId, startsAt])
   @@index([tenantId, roomId, startsAt])
   @@index([patientId])
+}
+
+/// Evento de confirmação de presença (§6: ConfirmationEvent). Histórico por
+/// agendamento; a confirmação em si é idempotente (não duplica ao confirmar 2x).
+model ConfirmationEvent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  appointmentId String
+  patientId     String
+  /// origem da confirmação: PATIENT_APP (S11), WHATSAPP (S12)...
+  source        String
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([appointmentId])
 }
 
 /// Espelha APPOINTMENT_STATUSES em @vero/types (mantenha ambos em sincronia).

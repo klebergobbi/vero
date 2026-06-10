@@ -24,6 +24,13 @@ export interface Appointment {
   status: string;
 }
 
+/** Retorno de POST /me/appointments/:id/confirm. */
+export interface ConfirmResult {
+  id: string;
+  status: string;
+  alreadyConfirmed: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -75,6 +82,16 @@ export const api = {
 
   myAppointments: (accessToken: string): Promise<Appointment[]> =>
     request<Appointment[]>("/me/appointments", { accessToken }),
+
+  /** Confirma presença na própria consulta (idempotente — §S11). */
+  confirmAppointment: (
+    accessToken: string,
+    appointmentId: string,
+  ): Promise<ConfirmResult> =>
+    request<ConfirmResult>(`/me/appointments/${appointmentId}/confirm`, {
+      method: "POST",
+      accessToken,
+    }),
 
   /** Exclui a própria conta (anonimiza + bloqueia login — §5 loja). */
   deleteAccount: (accessToken: string): Promise<{ ok: boolean }> =>

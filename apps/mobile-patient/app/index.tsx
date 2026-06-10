@@ -2,6 +2,7 @@ import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -40,6 +41,7 @@ export default function Home() {
   const [items, setItems] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -65,6 +67,41 @@ export default function Home() {
       setLoading(false);
     }
   }, [accessToken, refresh]);
+
+  const confirm = useCallback(
+    async (id: string) => {
+      if (!accessToken) return;
+      setConfirmingId(id);
+      const apply = (status: string) =>
+        setItems((prev) =>
+          prev.map((it) => (it.id === id ? { ...it, status } : it)),
+        );
+      try {
+        const res = await api.confirmAppointment(accessToken, id);
+        apply(res.status);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          const fresh = await refresh();
+          if (fresh) {
+            try {
+              const res = await api.confirmAppointment(fresh, id);
+              apply(res.status);
+              return;
+            } catch {
+              // cai no alerta abaixo
+            }
+          }
+        }
+        Alert.alert(
+          "Não foi possível confirmar",
+          "Tente novamente em instantes.",
+        );
+      } finally {
+        setConfirmingId(null);
+      }
+    },
+    [accessToken, refresh],
+  );
 
   useEffect(() => {
     void load();
@@ -103,12 +140,28 @@ export default function Home() {
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.cardTime}>
-                {formatRange(item.startsAt, item.endsAt)}
-              </Text>
-              <Text style={styles.cardStatus}>
-                {STATUS_LABELS[item.status] ?? item.status}
-              </Text>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardTime}>
+                  {formatRange(item.startsAt, item.endsAt)}
+                </Text>
+                <Text style={styles.cardStatus}>
+                  {STATUS_LABELS[item.status] ?? item.status}
+                </Text>
+              </View>
+              {item.status === "SCHEDULED" ? (
+                <TouchableOpacity
+                  style={styles.confirmBtn}
+                  accessibilityRole="button"
+                  disabled={confirmingId === item.id}
+                  onPress={() => void confirm(item.id)}
+                >
+                  {confirmingId === item.id ? (
+                    <ActivityIndicator color="#14283d" />
+                  ) : (
+                    <Text style={styles.confirmText}>Confirmar presença</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
         />
@@ -148,11 +201,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#1b3a5b",
     borderRadius: 12,
     padding: 16,
+    gap: 12,
+  },
+  cardRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   cardTime: { color: "#ffffff", fontSize: 15, fontWeight: "600" },
+  confirmBtn: {
+    backgroundColor: "#2dd4bf",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  confirmText: { color: "#14283d", fontSize: 15, fontWeight: "700" },
   cardStatus: {
     color: "#14283d",
     backgroundColor: "#2dd4bf",

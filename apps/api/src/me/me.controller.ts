@@ -1,4 +1,11 @@
-import { Controller, Get } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+} from "@nestjs/common";
 import { Patient, PatientId } from "../common/decorators/patient.decorator";
 import { TenantId } from "../common/decorators/tenant-id.decorator";
 import { MeService } from "./me.service";
@@ -17,5 +24,16 @@ export class MeController {
   @Get("appointments")
   myAppointments(@TenantId() tenantId: string, @PatientId() patientId: string) {
     return this.me.myAppointments(tenantId, patientId);
+  }
+
+  /** POST /me/appointments/:id/confirm — confirma presença (idempotente). */
+  @Post("appointments/:id/confirm")
+  @HttpCode(HttpStatus.OK)
+  confirm(
+    @TenantId() tenantId: string,
+    @PatientId() patientId: string,
+    @Param("id") id: string,
+  ) {
+    return this.me.confirmAppointment(tenantId, patientId, id);
   }
 }

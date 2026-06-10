@@ -538,7 +538,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S11 — Confirmação de consulta
+\#### \[x] S11 — Confirmação de consulta
 
 \*\*Depende de:\*\* S6, S8
 
@@ -1379,6 +1379,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (55)/`build`/`format:check`/`audit` \*\*zero vulns\*\* — verdes. Typecheck dos 2 apps OK; \*\*`expo export` empacotou os DOIS apps\*\* (telas de exclusão + Link resolvem no Metro). \*\*AO VIVO (web):\* `/exclusao-de-conta` responde \*\*200 sem login\*\* (com o conteúdo certo) e `/agenda` segue protegida (\*\*307→/login\*\*) — o guard continua deny-by-default.\* O `DELETE /me` em si já foi validado ao vivo na S10a. \*Falta só (do usuário):\* exercer o fluxo de exclusão em device.
 
   \- \*Pendências p/ próxima:\* \*\*S10 COMPLETA.\*\* Próxima no backlog: \*\*S11 — Confirmação de consulta\*\* (paciente confirma presença pelo app; `ConfirmationEvent` idempotente; status reflete na agenda web). Herdadas: device-build dos apps (usuário), prontuário/retenção legal real (S26), extrair `@vero/mobile-shared` (agora MUITO duplicado entre os 2 apps), endpoint de unidades + filtro no mobile-pro, nome do paciente na agenda, Unit/Professional listagem na web, cache `rbac:perms`, `start` path, docker-compose, lockout.
+
+\- \*\*2026-06-10 · S11 — Confirmação de consulta (FECHA a S11)\*\*
+
+  \- \*O que foi feito:\* o paciente confirma presença pelo app e o status reflete na agenda (que a web já lê desde a S7b). Modelo `ConfirmationEvent` (§6: id, tenantId, appointmentId, patientId, `source`, createdAt — histórico por agendamento; relações p/ Tenant e Appointment com `onDelete: Cascade`; índices em tenantId/appointmentId). Endpoint \*\*`POST /me/appointments/:id/confirm`\*\* no `MeController` (`@Patient`, `@HttpCode(200)`). `MeService.confirmAppointment` é \*\*OWNER-scoped\*\* (anti-IDOR via `TenantScope.ownerWhere(patientId, …, 'patientId')` + `ensureOwned`→403) e \*\*IDEMPOTENTE\*\*: já `CONFIRMED`→no-op (`alreadyConfirmed:true`, sem novo evento); status terminal (`CANCELLED`/`NO_SHOW`/`COMPLETED`)→409; senão, \*\*$transaction\*\* atômica muda o status p/ `CONFIRMED` E cria o `ConfirmationEvent` (`source: PATIENT_APP`). No app do paciente: `lib/api.ts` +`confirmAppointment`; `app/index.tsx` mostra botão \*\*"Confirmar presença"\*\* só em cards `SCHEDULED` (loading por item, refresh-on-401, `Alert` em falha) e atualiza o status localmente ao confirmar.
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`ConfirmationEvent` +back-relations), `apps/api/prisma/migrations/20260609183405_s11_confirmation_event/` (aditiva), `apps/api/src/me/{me.controller,me.service}.ts`, `apps/api/test/me.service.spec.ts` (4 casos: happy/idempotente/409/403), `apps/mobile-patient/{lib/api.ts,app/index.tsx}`. \*\*Sem dep nova.\*\* (Parte do backend já vinha esboçada não-commitada desta sessão; completei + telas mobile + verificação ao vivo.)
+
+  \- \*Decisões:\* a lógica de confirmação ficou no \*\*`me` module\*\* (que já é `@Patient`/owner-scoped), não num `appointment/confirmation.service.ts` à parte como a spec sugeria — o ponto de entrada é a ação do PACIENTE sobre a PRÓPRIA consulta, então mora junto de `/me/appointments` (reusa `@PatientId`/`TenantScope`, sem duplicar guarda). Botão de confirmar só em `SCHEDULED` (os demais status não fazem sentido p/ o paciente confirmar). Atualização \*otimista-leve\*: aplica o status retornado pelo backend (não chuta), mantendo a UI consistente sem refetch. Idempotência por \*estado\* (status `CONFIRMED`), não por unique constraint — o histórico de eventos é append-only mas a 2ª confirmação não cria evento (no-op antes da transação).
+
+  \- \*Verificação:\* `pnpm lint` (inclui `tsc --noEmit` do mobile)/`test` (57 pass, 2 skip)/`build` (web+api)/`format:check`/`audit` \*\*zero vulns\*\* — verdes. \*\*AO VIVO\*\* (PG+Redis efêmeros 5455/6395 + API real, agendamento `SCHEDULED` semeado via SQL): login do paciente demo → confirm #1 \*\*200 CONFIRMED\*\* (`alreadyConfirmed:false`) → confirm #2 \*\*idempotente\*\* (`alreadyConfirmed:true`) → `GET /me/appointments` mostra \*\*CONFIRMED\*\* → no banco \*\*1 só `ConfirmationEvent`\*\* (source `PATIENT_APP`) apesar das 2 chamadas → \*\*anti-IDOR\*\*: paciente B tentando confirmar a consulta de A → \*\*403\*\*, sem criar evento (count segue 1). Ambiente efêmero derrubado; SQLs/logs temporários removidos; árvore limpa (só os 7 arquivos da sessão). \*Falta só (do usuário):\* exercer o botão em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S11 COMPLETA.\*\* Próxima no backlog: \*\*S12 — WhatsApp (Evolution) — fila de confirmação\*\* (proxy backend anti-SSRF, fila `confirmation-sender` idempotente/backoff/DLQ, webhook que valida assinatura; o `ConfirmationEvent.source` já prevê `WHATSAPP`). Herdadas: device-build dos apps (usuário), prontuário/retenção legal (S26), extrair `@vero/mobile-shared`, endpoint de unidades + filtro no mobile-pro, nome do paciente na agenda, Unit/Professional listagem na web, cache `rbac:perms` no PERMISSION_CHANGED, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout por conta.
 
 
 

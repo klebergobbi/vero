@@ -35,13 +35,15 @@ export class MeService {
   }
 
   /**
-   * Paciente confirma presença na PRÓPRIA consulta (S11). IDEMPOTENTE: confirmar
-   * 2x não duplica o ConfirmationEvent (já CONFIRMED → no-op). Anti-IDOR via owner.
+   * Confirma presença na consulta do paciente (S11). IDEMPOTENTE: confirmar 2x não
+   * duplica o ConfirmationEvent (já CONFIRMED → no-op). Anti-IDOR via owner.
+   * `source` registra a origem (PATIENT_APP no app; WHATSAPP no webhook da S12b).
    */
   async confirmAppointment(
     tenantId: string,
     patientId: string,
     appointmentId: string,
+    source = "PATIENT_APP",
   ): Promise<ConfirmResult> {
     const scope = new TenantScope(tenantId);
     const appt = await this.prisma.appointment.findFirst({
@@ -69,7 +71,7 @@ export class MeService {
         select: { id: true, status: true },
       }),
       this.prisma.confirmationEvent.create({
-        data: { tenantId, appointmentId, patientId, source: "PATIENT_APP" },
+        data: { tenantId, appointmentId, patientId, source },
       }),
     ]);
     return { id: updated.id, status: updated.status, alreadyConfirmed: false };

@@ -24,6 +24,9 @@ export const envSchema = z.object({
     .optional(),
   EVOLUTION_API_KEY: z.string().min(1).optional(),
   EVOLUTION_INSTANCE: z.string().min(1).optional(),
+  // Segredo que o webhook da Evolution deve apresentar (header/query) — valida a
+  // origem (S12b). Sem ele, o webhook recusa tudo (fail-closed).
+  EVOLUTION_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

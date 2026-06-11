@@ -7,6 +7,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import type { IncomingMessage } from "node:http";
 import { WhatsAppModule } from "./integrations/whatsapp/whatsapp.module";
+import { PushModule } from "./push/push.module";
 
 /**
  * Converte a REDIS_URL em opções de conexão do BullMQ. Passamos opções (não uma
@@ -111,6 +112,7 @@ import { RedisModule } from "./redis/redis.module";
     AppointmentModule,
     MeModule,
     WhatsAppModule,
+    PushModule,
   ],
   providers: [
     // Ordem importa: rate limit → autenticação → tenant → autorização (deny-by-default).

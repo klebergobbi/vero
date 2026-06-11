@@ -34,6 +34,7 @@ model Tenant {
   appointments     Appointment[]
   availabilities   Availability[]
   confirmationEvents ConfirmationEvent[]
+  deviceTokens     DeviceToken[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -93,6 +94,7 @@ model User {
   units          UserUnit[]
   appointments   Appointment[]  @relation("ProfessionalAppointments")
   availabilities Availability[] @relation("ProfessionalAvailability")
+  deviceTokens   DeviceToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -221,6 +223,7 @@ model Patient {
   referredBy   Patient?      @relation("PatientReferral", fields: [referredById], references: [id])
   referrals    Patient[]     @relation("PatientReferral")
   appointments Appointment[]
+  deviceTokens DeviceToken[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -288,6 +291,35 @@ model ConfirmationEvent {
 
   @@index([tenantId])
   @@index([appointmentId])
+}
+
+/// Token de push de um device (§6/S13). Dono = paciente OU usuário de equipe
+/// (exatamente um). `token` (ExpoPushToken) é único globalmente: 1 device = 1 linha.
+/// `optedOut` respeita o opt-out de push da loja (§5). Sem segredo (chave de envio).
+model DeviceToken {
+  id         String         @id @default(cuid())
+  tenantId   String
+  patientId  String?
+  userId     String?
+  token      String         @unique
+  platform   DevicePlatform
+  optedOut   Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  lastSeenAt DateTime       @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([userId])
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
 }
 
 /// Espelha APPOINTMENT_STATUSES em @vero/types (mantenha ambos em sincronia).

@@ -35,6 +35,7 @@ model Tenant {
   availabilities   Availability[]
   confirmationEvents ConfirmationEvent[]
   deviceTokens     DeviceToken[]
+  notifications    Notification[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -95,6 +96,7 @@ model User {
   appointments   Appointment[]  @relation("ProfessionalAppointments")
   availabilities Availability[] @relation("ProfessionalAvailability")
   deviceTokens   DeviceToken[]
+  notifications  Notification[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -224,6 +226,7 @@ model Patient {
   referrals    Patient[]     @relation("PatientReferral")
   appointments Appointment[]
   deviceTokens DeviceToken[]
+  notifications Notification[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -320,6 +323,40 @@ model DeviceToken {
 enum DevicePlatform {
   IOS
   ANDROID
+}
+
+/// Notificação push enviada a um destinatário (§6/S13b). Histórico + idempotência
+/// do envio (o job da fila push-sender é idempotente por este id). Destinatário =
+/// paciente OU usuário de equipe (exatamente um). `data` é payload p/ deep-link.
+model Notification {
+  id        String             @id @default(cuid())
+  tenantId  String
+  patientId String?
+  userId    String?
+  type      String
+  title     String
+  body      String
+  data      Json?
+  status    NotificationStatus @default(PENDING)
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient? @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([userId])
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
 }
 
 /// Espelha APPOINTMENT_STATUSES em @vero/types (mantenha ambos em sincronia).

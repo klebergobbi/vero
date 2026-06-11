@@ -27,6 +27,10 @@ export const envSchema = z.object({
   // Segredo que o webhook da Evolution deve apresentar (header/query) — valida a
   // origem (S12b). Sem ele, o webhook recusa tudo (fail-closed).
   EVOLUTION_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  // Push (Expo). Opcional: o Expo aceita envio sem token de acesso; quando presente
+  // habilita rate-limit maior/segurança extra (Authorization Bearer). Sem segredo crítico.
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,4 +1,9 @@
-import type { Appointment, PatientSummary } from "@vero/api-client";
+import type {
+  Appointment,
+  PatientSummary,
+  ProfessionalSummary,
+  UnitSummary,
+} from "@vero/api-client";
 import { serverApi } from "../../lib/api";
 import { logoutAction } from "../login/actions";
 import { AppointmentForm } from "./appointment-form";
@@ -34,11 +39,15 @@ export default async function AgendaPage() {
   // Falha de dependência não derruba a tela (§4 fail-closed no dado, não na UI).
   let appointments: Appointment[] = [];
   let patients: PatientSummary[] = [];
+  let units: UnitSummary[] = [];
+  let professionals: ProfessionalSummary[] = [];
   let loadError = false;
   try {
-    [appointments, patients] = await Promise.all([
+    [appointments, patients, units, professionals] = await Promise.all([
       api.listAppointments(),
       api.listPatients(),
+      api.listUnits(),
+      api.listProfessionals(),
     ]);
   } catch {
     loadError = true;
@@ -75,7 +84,11 @@ export default async function AgendaPage() {
         <h2 className="mb-3 text-lg font-semibold text-slate-800">
           Novo agendamento
         </h2>
-        <AppointmentForm patients={patients} />
+        <AppointmentForm
+          patients={patients}
+          units={units}
+          professionals={professionals}
+        />
       </section>
 
       <section>

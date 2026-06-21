@@ -36,6 +36,7 @@ import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
 import { MeModule } from "./me/me.module";
+import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -110,6 +111,7 @@ import { RedisModule } from "./redis/redis.module";
     AuthModule,
     PatientModule,
     AppointmentModule,
+    OrgModule,
     MeModule,
     WhatsAppModule,
     PushModule,

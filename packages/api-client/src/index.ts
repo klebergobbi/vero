@@ -29,6 +29,18 @@ export interface PatientSummary {
   phone: string;
 }
 
+/** Resumo de unidade para o seletor da agenda (id + name). */
+export interface UnitSummary {
+  id: string;
+  name: string;
+}
+
+/** Resumo de profissional (User) para o seletor da agenda (id + name). */
+export interface ProfessionalSummary {
+  id: string;
+  name: string;
+}
+
 /** Agendamento como devolvido pela API (instantes em ISO 8601). */
 export interface Appointment {
   id: string;
@@ -125,6 +137,14 @@ export function createApiClient(opts: ApiClientOptions) {
         `/patients${q ? `?q=${encodeURIComponent(q)}` : ""}`,
         { accessToken },
       ),
+
+    listUnits: (): Promise<UnitSummary[]> =>
+      request<UnitSummary[]>(baseUrl, "/units", { accessToken }),
+
+    listProfessionals: (): Promise<ProfessionalSummary[]> =>
+      request<ProfessionalSummary[]>(baseUrl, "/professionals", {
+        accessToken,
+      }),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

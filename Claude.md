@@ -580,7 +580,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S14 — Self check-in
+\#### \[ ] S14 — Self check-in  ·  \*DIVIDIDA: \[x] S14a (backend: WaitList + check-in idempotente + GET /waitlist) · \[ ] S14b (mobile: botão de check-in + indicador de fila na agenda web)\*
 
 \*\*Depende de:\*\* S6, S8
 
@@ -1461,6 +1461,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (84 pass, 2 skip)/`build` (4/4)/`format:check` \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local: PG+Redis efêmeros 5455/6395, API 3333, web 3001): `GET /units`→`[{Matriz}]`, `GET /professionals`→`[{Revisor Demo}]`; \*\*Playwright\*\* logou no web e \*\*criou 2 agendamentos pelos dropdowns\*\* (Agendamentos (2), persistidos no banco). \*Aprendizado:\* a `/agenda` tem 2 `button[type=submit]` (Sair=logout + Agendar); um seletor ambíguo no teste clicava Sair e voltava ao login — o app estava correto (create 201). Também esbarrei no rate-limit de login 5/min da S3.
 
   \- \*Pendência resolvida:\* "endpoint de listagem de Unit/Professional + seletores na agenda" (herdada desde a S7b) — \*\*FECHADA\*\*. Continua aberto: modelos `Professional`/`Room` dedicados; editar/mover/cancelar pela UI.
+
+\- \*\*2026-06-21 · S14a — Self check-in: backend (WaitList + check-in idempotente + fila)\*\*  ·  \*S14 DIVIDIDA em S14a (esta) + S14b (mobile + indicador web)\*
+
+  \- \*O que foi feito:\* base do self check-in. Modelo `WaitList` (§6: id, tenantId, `appointmentId @unique`, patientId, unitId, `status` enum `WaitListStatus` WAITING/CALLED/DONE, `arrivedAt`; relações Cascade p/ Tenant e Appointment — 1:1 com Appointment via unique) + migration aditiva. \*\*Check-in no `me` module\*\* (mesmo padrão da S11 — ação do paciente sobre a PRÓPRIA consulta): `MeService.checkIn` é OWNER-scoped (anti-IDOR via `TenantScope.ownerWhere` + `ensureOwned`→403) e \*\*IDEMPOTENTE\*\* — já `CHECKED_IN` → no-op (`alreadyCheckedIn:true`, sem tocar a fila); status não-checkável (≠ SCHEDULED/CONFIRMED) → 409; senão `$transaction` muda o agendamento p/ `CHECKED_IN` E faz \*\*upsert\*\* da WaitList (WAITING) por `appointmentId` (blinda corrida, nunca duplica). Endpoint `POST /me/appointments/:id/checkin` (`@Patient`, `@HttpCode(200)`). \*\*Leitura p/ a recepção:\* `AppointmentService.listWaitList` (tenant-scoped, status WAITING, opcional por unidade) + `GET /waitlist` (`appointment:read`) — a web vai consumir na S14b.\* \*Janela/raio de check-in (§S14 "opcional") não imposto por ora — anotado.\*
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`WaitList` +enum +back-relations em Tenant/Appointment), `apps/api/prisma/migrations/*_s14_waitlist/` (aditiva), `apps/api/src/me/{me.service,me.controller}.ts` (checkIn + rota), `apps/api/src/appointment/{appointment.service,appointment.controller}.ts` (listWaitList + GET /waitlist), teste `apps/api/test/me.service.spec.ts` (+4 casos do check-in). Sem dep nova.
+
+  \- \*Decisões:\* check-in no `me` module (não num `appointment/checkin.service.ts` à parte como a spec sugeria) — o ponto de entrada é a ação do PACIENTE sobre a PRÓPRIA consulta, então mora junto de `/me/*` reusando `@Patient`/`@PatientId`/`TenantScope` (mesma escolha registrada na S11). Idempotência por \*\*estado\*\* (status CHECKED_IN) + \*\*`@unique` em appointmentId\*\* (upsert) — dupla barreira. WaitList 1:1 com Appointment (uma fila por consulta). `GET /waitlist` retorna campos crus (patientId/arrivedAt/…); a web mapeia patientId→nome como já faz na agenda (S7b).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (88 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local PG 5455/Redis 6395, API 3333): check-in de consulta SCHEDULED → \*\*200 CHECKED_IN\*\*; 2ª vez → \*\*idempotente\*\* (`alreadyCheckedIn:true`); `GET /waitlist` (recepção) → \*\*1 entrada WAITING\*\* (não duplicou); staff na rota de paciente → \*\*403\*\* (faixa @Patient). \*Lembrete:\* parar a API antes de `prisma generate` (a DLL do query engine fica travada pelo processo node — deu EPERM).
+
+  \- \*Pendências p/ próxima:\* \*\*S14b\*\* — mobile-patient: botão \*\*"Fazer check-in"\*\* nos cards de consulta (chama `POST /me/appointments/:id/checkin`, reusa o `lib/api`+refresh-on-401, idealmente só quando `CONFIRMED`/perto do horário); web: \*\*indicador de fila\*\* na agenda (consome `GET /waitlist` via api-client `listWaitList()`, mostra quem chegou em tempo real). Herdadas: device-build, janela/raio de check-in opcional, extrair `@vero/mobile-shared`, modelos Professional/Room, editar/mover/cancelar na UI, `docker-compose.yml`, cache `rbac:perms`, `start`→`dist/src/main.js`, lockout.
 
 
 

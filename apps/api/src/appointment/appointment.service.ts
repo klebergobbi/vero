@@ -169,6 +169,21 @@ export class AppointmentService {
     });
   }
 
+  /**
+   * Fila de espera do tenant (S14) — pacientes que fizeram self check-in e
+   * aguardam atendimento. A recepção vê isto na agenda web. Tenant-scoped.
+   */
+  async listWaitList(tenantId: string, unitId?: string) {
+    const scope = new TenantScope(tenantId);
+    const where = scope.where<Prisma.WaitListWhereInput>({ status: "WAITING" });
+    if (unitId) where.unitId = unitId;
+    return this.prisma.waitList.findMany({
+      where,
+      orderBy: { arrivedAt: "asc" },
+      take: 100,
+    });
+  }
+
   // --- regras (privadas) ---
 
   private assertRange(startsAt: Date, endsAt: Date): void {

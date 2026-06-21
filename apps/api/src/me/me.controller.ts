@@ -36,4 +36,15 @@ export class MeController {
   ) {
     return this.me.confirmAppointment(tenantId, patientId, id);
   }
+
+  /** POST /me/appointments/:id/checkin — self check-in ao chegar (idempotente). */
+  @Post("appointments/:id/checkin")
+  @HttpCode(HttpStatus.OK)
+  checkIn(
+    @TenantId() tenantId: string,
+    @PatientId() patientId: string,
+    @Param("id") id: string,
+  ) {
+    return this.me.checkIn(tenantId, patientId, id);
+  }
 }

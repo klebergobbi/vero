@@ -59,3 +59,71 @@ describe("MeService.confirmAppointment (S11)", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
+
+describe("MeService.checkIn (S14)", () => {
+  function build(appt: { id: string; status: string; unitId: string } | null) {
+    const prisma = {
+      appointment: {
+        findFirst: jest.fn().mockResolvedValue(appt),
+        update: jest.fn(),
+      },
+      waitList: { upsert: jest.fn() },
+      $transaction: jest
+        .fn()
+        .mockResolvedValue([{ id: appt?.id, status: "CHECKED_IN" }, {}]),
+    } as unknown as PrismaService;
+    return { service: new MeService(prisma), prisma };
+  }
+
+  it("check-in de consulta SCHEDULED: status CHECKED_IN + entra na fila", async () => {
+    const { service, prisma } = build({
+      id: "a1",
+      status: "SCHEDULED",
+      unitId: "u1",
+    });
+    const res = await service.checkIn("t1", "p1", "a1");
+
+    expect(res).toEqual({
+      id: "a1",
+      status: "CHECKED_IN",
+      alreadyCheckedIn: false,
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1); // update + upsert atômicos
+  });
+
+  it("idempotente: já CHECKED_IN → no-op, sem duplicar fila", async () => {
+    const { service, prisma } = build({
+      id: "a1",
+      status: "CHECKED_IN",
+      unitId: "u1",
+    });
+    const res = await service.checkIn("t1", "p1", "a1");
+
+    expect(res).toEqual({
+      id: "a1",
+      status: "CHECKED_IN",
+      alreadyCheckedIn: true,
+    });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("recusa check-in de consulta COMPLETED (409)", async () => {
+    const { service, prisma } = build({
+      id: "a1",
+      status: "COMPLETED",
+      unitId: "u1",
+    });
+    await expect(service.checkIn("t1", "p1", "a1")).rejects.toThrow(
+      ConflictException,
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("anti-IDOR: consulta de outro paciente → 403", async () => {
+    const { service, prisma } = build(null);
+    await expect(service.checkIn("t1", "p1", "alheia")).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});

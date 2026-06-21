@@ -41,6 +41,13 @@ export class AppointmentController {
     return this.appointments.listAvailability(tenantId, unitId, professionalId);
   }
 
+  /** GET /waitlist — fila de espera (self check-in) para a recepção. */
+  @Get("waitlist")
+  @Permissions("appointment:read")
+  listWaitList(@TenantId() tenantId: string, @Query("unitId") unitId?: string) {
+    return this.appointments.listWaitList(tenantId, unitId);
+  }
+
   // --- Agendamentos ---
 
   @Post("appointments")

@@ -37,6 +37,9 @@ model Tenant {
   deviceTokens     DeviceToken[]
   notifications    Notification[]
   waitListEntries  WaitList[]
+  procedures       Procedure[]
+  plans            Plan[]
+  priceTable       PriceTable[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -417,4 +420,62 @@ model Availability {
   professional User   @relation("ProfessionalAvailability", fields: [professionalId], references: [id])
 
   @@index([tenantId, professionalId, dayOfWeek])
+}
+
+/// Catálogo: procedimento ofertado pela clínica (§6/S16). Tenant-scoped.
+model Procedure {
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String
+  /// código interno/TUSS (opcional).
+  code            String?
+  /// duração padrão em minutos (opcional) — base p/ agenda futura.
+  durationMinutes Int?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices PriceTable[]
+
+  @@index([tenantId])
+}
+
+/// Catálogo: convênio/plano (§6/S16). "Particular" é um Plan. Tenant-scoped.
+model Plan {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices PriceTable[]
+
+  @@index([tenantId])
+}
+
+/// Preço de um procedimento POR convênio (§6 PriceTable). Uma linha = preço de
+/// (procedimento × convênio). `priceCents` em centavos (evita float em dinheiro).
+model PriceTable {
+  id          String   @id @default(cuid())
+  tenantId    String
+  procedureId String
+  planId      String
+  priceCents  Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  procedure Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  plan      Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, procedureId, planId])
+  @@index([tenantId])
+  @@index([procedureId])
+  @@index([planId])
 }

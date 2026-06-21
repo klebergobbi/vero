@@ -35,6 +35,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
+import { CatalogModule } from "./catalog/catalog.module";
 import { MeModule } from "./me/me.module";
 import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
@@ -114,6 +115,7 @@ import { RedisModule } from "./redis/redis.module";
     AppointmentModule,
     OrgModule,
     PublicModule,
+    CatalogModule,
     MeModule,
     WhatsAppModule,
     PushModule,

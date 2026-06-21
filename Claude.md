@@ -612,7 +612,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S16 — Procedure / PriceTable / Plan
+\#### \[ ] S16 — Procedure / PriceTable / Plan  ·  \*DIVIDIDA: \[x] S16a (backend: schema + permissions catalog:* + módulo CRUD) · \[ ] S16b (tela web de cadastro)\*
 
 \*\*Depende de:\*\* S4
 
@@ -1521,6 +1521,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc` do mobile)/`test` (93 pass, 2 skip)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*`npx expo export`\*\* empacotou o paciente (tela `book` + novos imports resolvem no Metro). \*\*AO VIVO\*\* (stack local): `GET /me/units`/`/me/professionals` → Matriz/Revisor Demo; `GET /me/slots` → horários livres; `POST /me/book` → \*\*200\*\* (consulta com o patientId do paciente demo, SEM lead); re-book mesmo slot → \*\*409\*\*; token de equipe em `/me/book` → \*\*403\*\*. \*Falta só (do usuário):\* exercer a tela em device.
 
   \- \*Pendências p/ próxima:\* \*\*S15 COMPLETA\*\* (online booking nas 3 superfícies: público web, app do paciente, backend). Próxima no backlog: \*\*FASE 2 — S16 (Procedure/PriceTable/Plan)\*\* — começa o motor comercial/financeiro. Herdadas: date-picker nativo no app de booking, janela/raio de check-in opcional, device-build, extrair `@vero/mobile-shared`, modelos `Professional`/`Room`, editar/mover/cancelar na UI, cron diário da confirmação (S12), `MessageLog`, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
+
+\- \*\*2026-06-21 · S16a — Catálogo comercial: backend (Procedure/Plan/PriceTable + permissions)\*\*  ·  \*INÍCIO DA FASE 2; S16 DIVIDIDA em S16a (esta) + S16b (tela web)\*
+
+  \- \*O que foi feito:\* fundação do catálogo comercial (§6). \*\*Permissions novas\*\* em @vero/types: `catalog:read`/`catalog:write` (GESTOR herda via ALL; concedidas a DENTISTA/RECEPCAO=read, FINANCEIRO=read+write) — \*\*seed agora cria 20 permissions\*\* (era 18). Schema: \*\*`Procedure`\*\* (name, code?, durationMinutes?, active, soft-delete), \*\*`Plan`\*\* (convênio; "Particular" é um Plan; name, active, soft-delete), \*\*`PriceTable`\*\* (preço POR convênio: `procedureId`×`planId`×`priceCents`, `@@unique([tenantId,procedureId,planId])`) — \*\*dinheiro em centavos `Int`\*\* (evita float). Módulo `catalog`: `CatalogService` (CRUD dos 3, TODO tenant-scoped via `TenantScope`; `ensureProcedure/Plan/Price`→403 anti-IDOR; `createPrice` valida que procedimento E convênio são do mesmo tenant e mapeia P2002→400 amigável; Procedure/Plan soft-delete, Price hard-delete) + `CatalogController` (12 rotas REST: procedures/plans/prices × CRUD, gated `catalog:read|write`).
+
+  \- \*Arquivos tocados:\* `packages/types/src/rbac.ts` (+2 permissions +grants), `apps/api/prisma/schema.prisma` (+3 modelos +back-relations no Tenant), `apps/api/prisma/migrations/*_s16_catalog/` (aditiva), `apps/api/src/catalog/{catalog.module,catalog.service,catalog.controller}.ts` + `catalog/dto/catalog.dto.ts` (novos), `apps/api/src/app.module.ts` (+CatalogModule), teste `apps/api/test/catalog.service.spec.ts` (4 casos). Sem dep nova.
+
+  \- \*Decisões:\* `priceCents Int` (não Decimal) — dinheiro inteiro, simples e exato; o front divide por 100. `PriceTable` = uma linha por (procedimento × convênio) com unique — interpretação prática de "preço por convênio" do §6 (sem modelar tabelas nomeadas ainda). DTOs agrupados num só `catalog.dto.ts` (6 classes) p/ não explodir arquivos. Procedure/Plan com soft-delete (`deletedAt`); PriceTable hard-delete (entrada de preço, sem histórico por ora). \*\*Re-seed + flush do cache `rbac:perms` no Redis\*\* foi necessário p/ o GESTOR enxergar as novas permissions ao vivo (a invalidação automática no PERMISSION_CHANGED segue pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (97 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local, re-seed 20 perms + cache limpo): login GESTOR → criar convênio "Particular" + procedimento "Limpeza" (30min) + \*\*preço Limpeza×Particular = R$120,00\*\* (`priceCents:12000`); preço \*\*duplicado → 400\*\*; `GET /prices` devolve com nomes ("Limpeza / Particular = 120.00"); \*\*token de paciente em /procedures → 403\*\* (rota de equipe). Anti-IDOR coberto por unit test.
+
+  \- \*Pendências p/ próxima:\* \*\*S16b\*\* — tela web de cadastro do catálogo (procedimentos, convênios, preços por convênio) consumindo as 12 rotas; api-client +métodos. Considerar gatear a UI por `catalog:write`. Herdadas: as de sempre + invalidar cache `rbac:perms` no PERMISSION_CHANGED (agora mais relevante com novas permissions).
 
 
 

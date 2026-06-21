@@ -29,6 +29,11 @@ export const PERMISSIONS = [
   { key: "record:read", description: "Visualizar prontuário" },
   { key: "record:write", description: "Editar prontuário" },
   // Comercial
+  {
+    key: "catalog:read",
+    description: "Visualizar catálogo (procedimentos/preços/convênios)",
+  },
+  { key: "catalog:write", description: "Cadastrar/editar catálogo" },
   { key: "budget:read", description: "Visualizar orçamentos" },
   { key: "budget:write", description: "Criar/editar orçamentos" },
   // Financeiro
@@ -87,6 +92,7 @@ export const SYSTEM_ROLES: ReadonlyArray<{
       "appointment:write",
       "record:read",
       "record:write",
+      "catalog:read",
       "budget:read",
     ],
   },
@@ -99,6 +105,7 @@ export const SYSTEM_ROLES: ReadonlyArray<{
       "appointment:read",
       "appointment:write",
       "appointment:cancel",
+      "catalog:read",
       "billing:read",
     ],
   },
@@ -107,6 +114,8 @@ export const SYSTEM_ROLES: ReadonlyArray<{
     name: "Financeiro",
     permissions: [
       "patient:read",
+      "catalog:read",
+      "catalog:write",
       "billing:read",
       "billing:write",
       "budget:read",

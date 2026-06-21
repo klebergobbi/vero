@@ -612,7 +612,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S16 — Procedure / PriceTable / Plan  ·  \*DIVIDIDA: \[x] S16a (backend: schema + permissions catalog:* + módulo CRUD) · \[ ] S16b (tela web de cadastro)\*
+\#### \[x] S16 — Procedure / PriceTable / Plan  ·  \*DIVIDIDA: \[x] S16a (backend: schema + permissions catalog:* + módulo CRUD) · \[x] S16b (tela web de cadastro)\*
 
 \*\*Depende de:\*\* S4
 
@@ -1533,6 +1533,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (97 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local, re-seed 20 perms + cache limpo): login GESTOR → criar convênio "Particular" + procedimento "Limpeza" (30min) + \*\*preço Limpeza×Particular = R$120,00\*\* (`priceCents:12000`); preço \*\*duplicado → 400\*\*; `GET /prices` devolve com nomes ("Limpeza / Particular = 120.00"); \*\*token de paciente em /procedures → 403\*\* (rota de equipe). Anti-IDOR coberto por unit test.
 
   \- \*Pendências p/ próxima:\* \*\*S16b\*\* — tela web de cadastro do catálogo (procedimentos, convênios, preços por convênio) consumindo as 12 rotas; api-client +métodos. Considerar gatear a UI por `catalog:write`. Herdadas: as de sempre + invalidar cache `rbac:perms` no PERMISSION_CHANGED (agora mais relevante com novas permissions).
+
+\- \*\*2026-06-21 · S16b — Catálogo: tela web de cadastro (FECHA a S16)\*\*
+
+  \- \*O que foi feito:\* tela de gestão do catálogo no web (`/catalogo`, protegida pelo middleware). \*\*api-client:\* +`listProcedures`/`createProcedure`/`listPlans`/`createPlan`/`listPrices`/`createPrice` + tipos `ProcedureItem`/`PlanItem`/`PriceItem`.\* `page.tsx` (Server Component, BFF) busca os 3 catálogos em paralelo (fail-soft) e renderiza 3 seções: \*\*Procedimentos\*\* e \*\*Convênios\*\* lado a lado (lista + form), \*\*Preços por convênio\*\* embaixo (form com selects de procedimento/convênio + preço em R$, lista com valor formatado `Intl` BRL). `actions.ts` (Server Actions `createProcedure/Plan/Price` + `revalidatePath`; \*\*preço digitado em reais → convertido p/ centavos\*\* `Math.round(reais*100)`; traduz 400/403 em msg segura). `catalog-forms.tsx` (client: 3 forms com `useActionState`+`useFormStatus`, feedback "Salvo."/erro).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (6 métodos + 3 tipos), `apps/web/app/catalogo/{page.tsx,actions.ts,catalog-forms.tsx}` (novos). Sem backend novo (consome S16a), sem migration, sem dep nova.
+
+  \- \*Decisões:\* preço em \*\*reais no input → centavos no backend\*\* (UX em R$, storage em Int). UI consome as rotas gated por `catalog:read|write` (o backend é a barreira; a UI não re-checa permission — o GESTOR/FINANCEIRO veem tudo, demais papéis tomariam 403 do backend, fail-soft). Listas simples (criar + listar); editar/desativar/remover pela UI fica como melhoria (backend já expõe PATCH/DELETE). Sem link de navegação entre /agenda e /catalogo ainda (navegação/layout comum é melhoria futura).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (97 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/catalogo` mostra \*\*Procedimentos (1)/Convênios (1)/Preços (1)\*\* com Limpeza/Particular/\*\*R$ 120,00\*\* (dados da S16a); criar "Clareamento" pelo form → aparece na lista ("Procedimentos (2)").\* \*Incidente recorrente:\* nova rota exigiu `rm -rf apps/web/.next` + restart (cache de dev quebra ao adicionar rota); rate limit de login 5/min também esbarrado.
+
+  \- \*Pendências p/ próxima:\* \*\*S16 COMPLETA.\*\* Próxima no backlog: \*\*S17 — Orçamento (Budget)\*\* (montar/acompanhar orçamentos; `Budget`+`BudgetItem`+status; total calculado no backend; depende de S16). Herdadas: editar/remover catálogo pela UI, navegação comum web (menu /agenda↔/catalogo), gatear UI por permission, invalidar cache `rbac:perms` no PERMISSION_CHANGED, date-picker no app de booking, extrair `@vero/mobile-shared`, modelos Professional/Room, `docker-compose.yml`, `start`→`dist/src/main.js`, lockout.
 
 
 

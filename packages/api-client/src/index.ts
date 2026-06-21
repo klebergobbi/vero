@@ -57,6 +57,33 @@ export interface OpenSlot {
   end: string;
 }
 
+/** Catálogo — procedimento (§S16). */
+export interface ProcedureItem {
+  id: string;
+  name: string;
+  code: string | null;
+  durationMinutes: number | null;
+  active: boolean;
+}
+
+/** Catálogo — convênio/plano (§S16). */
+export interface PlanItem {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+/** Catálogo — preço por convênio, com nomes (§S16). */
+export interface PriceItem {
+  id: string;
+  procedureId: string;
+  planId: string;
+  priceCents: number;
+  active: boolean;
+  procedure: { name: string };
+  plan: { name: string };
+}
+
 /** Dados do booking público (paciente se identifica como lead). */
 export interface PublicBookInput {
   unitId: string;
@@ -218,6 +245,46 @@ export function createApiClient(opts: ApiClientOptions) {
         `/public/clinics/${encodeURIComponent(slug)}/book`,
         { method: "POST", body: JSON.stringify(input) },
       ),
+
+    // --- Catálogo comercial (§S16, gated catalog:read|write no backend) ---
+
+    listProcedures: (): Promise<ProcedureItem[]> =>
+      request<ProcedureItem[]>(baseUrl, "/procedures", { accessToken }),
+
+    createProcedure: (input: {
+      name: string;
+      code?: string;
+      durationMinutes?: number;
+    }): Promise<ProcedureItem> =>
+      request<ProcedureItem>(baseUrl, "/procedures", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    listPlans: (): Promise<PlanItem[]> =>
+      request<PlanItem[]>(baseUrl, "/plans", { accessToken }),
+
+    createPlan: (input: { name: string }): Promise<PlanItem> =>
+      request<PlanItem>(baseUrl, "/plans", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    listPrices: (): Promise<PriceItem[]> =>
+      request<PriceItem[]>(baseUrl, "/prices", { accessToken }),
+
+    createPrice: (input: {
+      procedureId: string;
+      planId: string;
+      priceCents: number;
+    }): Promise<PriceItem> =>
+      request<PriceItem>(baseUrl, "/prices", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

@@ -1,7 +1,18 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { AppointmentService } from "../appointment/appointment.service";
+import {
+  SLOT_DURATION_MINUTES,
+  SlotService,
+} from "../appointment/slot.service";
 import { TenantScope } from "../common/repositories/tenant-scoped.helper";
+import { OrgService } from "../org/org.service";
 import { PrismaService } from "../prisma/prisma.service";
+import type { MeBookDto } from "./dto/book.dto";
 
 // Status em que NÃO faz sentido confirmar presença (terminais/cancelados).
 const NON_CONFIRMABLE = ["CANCELLED", "NO_SHOW", "COMPLETED"];
@@ -27,7 +38,22 @@ export interface CheckInResult {
  */
 @Injectable()
 export class MeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly slots: SlotService,
+    private readonly appointments: AppointmentService,
+    private readonly org: OrgService,
+  ) {}
+
+  /** Unidades da clínica do paciente (para escolher ao agendar — §S15c). */
+  myUnits(tenantId: string) {
+    return this.org.listUnits(tenantId);
+  }
+
+  /** Profissionais da clínica do paciente (para escolher ao agendar — §S15c). */
+  myProfessionals(tenantId: string) {
+    return this.org.listProfessionals(tenantId);
+  }
 
   myAppointments(tenantId: string, patientId: string) {
     const scope = new TenantScope(tenantId);
@@ -139,5 +165,58 @@ export class MeService {
       }),
     ]);
     return { id: updated.id, status: updated.status, alreadyCheckedIn: false };
+  }
+
+  /** Slots livres para o paciente logado escolher (§S15c). Tenant do JWT. */
+  mySlots(
+    tenantId: string,
+    unitId: string,
+    professionalId: string,
+    date: string,
+  ) {
+    return this.slots.openSlots(tenantId, unitId, professionalId, date);
+  }
+
+  /**
+   * Agendamento online do paciente LOGADO (§S15c): reserva um slot livre com o
+   * PRÓPRIO patientId (não cria lead). Re-valida o slot no servidor e reusa o
+   * AppointmentService (conflito race-safe → 409).
+   */
+  async book(tenantId: string, patientId: string, dto: MeBookDto) {
+    const start = new Date(dto.startsAt);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException("Horário inválido");
+    }
+    const dateYmd = await this.slots.dateYmdInUnitTz(
+      tenantId,
+      dto.unitId,
+      start,
+    );
+    if (!dateYmd) throw new BadRequestException("Unidade inválida");
+
+    const slots = await this.slots.openSlots(
+      tenantId,
+      dto.unitId,
+      dto.professionalId,
+      dateYmd,
+    );
+    const iso = start.toISOString();
+    if (!slots.some((s) => s.start === iso)) {
+      throw new ConflictException("Horário indisponível");
+    }
+
+    const end = new Date(start.getTime() + SLOT_DURATION_MINUTES * 60000);
+    const appt = await this.appointments.create(tenantId, {
+      unitId: dto.unitId,
+      professionalId: dto.professionalId,
+      patientId,
+      startsAt: iso,
+      endsAt: end.toISOString(),
+    });
+    return {
+      appointmentId: appt.id,
+      startsAt: appt.startsAt,
+      status: appt.status,
+    };
   }
 }

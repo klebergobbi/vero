@@ -594,7 +594,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S15 — Agendamento online  ·  \*DIVIDIDA: \[x] S15a (backend: engine de slots + endpoints públicos GET slots/POST book com rate limit) · \[ ] S15b (tela pública de booking no web) · \[ ] S15c (fluxo no app do paciente logado)\*
+\#### \[x] S15 — Agendamento online  ·  \*DIVIDIDA: \[x] S15a (backend: engine de slots + endpoints públicos GET slots/POST book com rate limit) · \[x] S15b (tela pública de booking no web) · \[x] S15c (fluxo no app do paciente logado)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1509,6 +1509,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (93 pass)/`format:check`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/agendar/vero-demo` carrega ("Agendar consulta"); escolher Matriz/Revisor Demo + data → grade de slots (09:00/09:30/10:30 — o 10:00 já ocupado não aparece) → escolher 09:00 + nome/telefone → \*\*"Agendamento confirmado! Até breve."\*\*; no banco: lead \*\*"Carlos Booking Web" (SITE)\*\* + consulta 12:00Z SCHEDULED.\* \*Incidente:\* cache `.next` corrompeu (`Cannot find module vendor-chunks/@swc+helpers`) após adicionar a rota via hot-reload — resolvido com `rm -rf apps/web/.next` + restart.
 
   \- \*Pendências p/ próxima:\* \*\*S15c\*\* — fluxo de agendamento online no \*\*app do paciente logado\*\* (escolher profissional/data → slots → marcar). Pode reusar `/public/.../slots` p/ listar e, para reservar como paciente conhecido, um `POST /me/book` (cria a consulta com o `patientId` do JWT, sem virar lead) — ou reusar o book público. Herdadas: as de sempre.
+
+\- \*\*2026-06-21 · S15c — Agendamento online: fluxo no app do paciente logado (FECHA a S15)\*\*
+
+  \- \*O que foi feito:\* o paciente logado agenda pelo app, com a PRÓPRIA identidade (não vira lead). \*\*Refactor:\* extraí `SlotService` (`appointment/slot.service.ts`) como FONTE ÚNICA do cálculo de slots — `openSlots(tenantId,unitId,professionalId,dateYmd)` + `dateYmdInUnitTz`; o `PublicService` foi reescrito p/ usá-lo (removida a duplicação de slotsForDate/civilDate); `AppointmentModule` passa a prover/exportar `SlotService`.\* \*\*`/me` (app):\* `MeService` ganhou `mySlots`/`book`/`myUnits`/`myProfessionals` (injeta SlotService + AppointmentService + OrgService); rotas `GET /me/units`, `GET /me/professionals`, `GET /me/slots`, `POST /me/book` (`@Patient` — token de equipe negado 403). `book` re-valida o slot (disponibilidade+antecedência+conflito) e reusa `AppointmentService.create` com o `patientId` do JWT (conflito race-safe → 409). DTOs `MeBookDto`/`MeSlotsQueryDto`.\* \*\*Mobile (paciente):\* `lib/api.ts` +`meUnits`/`meProfessionals`/`meSlots`/`meBook` (+tipos `NamedRef`/`OpenSlot`); nova tela `app/book.tsx` (escolher profissional/unidade via chips + data → "Ver horários" → grade de slots → "Confirmar" → Alert de sucesso → volta p/ home; refresh-on-401); botão "+ Agendar consulta" na home (`Link href="/book"`).\*
+
+  \- \*Arquivos tocados:\* `apps/api/src/appointment/{slot.service.ts (novo),appointment.module.ts}`, `apps/api/src/public/public.service.ts` (refactor → SlotService), `apps/api/src/me/{me.module,me.service,me.controller}.ts` + `me/dto/{book,slots-query}.dto.ts` (novos), `apps/api/test/me.service.spec.ts` (mocks p/ novos ctor args), `apps/mobile-patient/{lib/api.ts,app/book.tsx (novo),app/index.tsx}`. Sem migration, sem dep nova.
+
+  \- \*Decisões:\* `SlotService` compartilhado (público + `/me` + futuros) — não duplica regra de slots. `/me/units`/`/me/professionals` (tenant do JWT) em vez de exigir slug no app (reusa OrgService). `POST /me/book` NÃO cria lead (usa o `patientId` autenticado) — diferença-chave do book público. Tela mobile com \*\*chips\*\* p/ selecionar (RN não tem `<select>` nativo) e \*\*data por texto AAAA-MM-DD\*\* (sem dep de date-picker, §8 simplicidade) — date-picker nativo fica como melhoria.
+
+  \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc` do mobile)/`test` (93 pass, 2 skip)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*`npx expo export`\*\* empacotou o paciente (tela `book` + novos imports resolvem no Metro). \*\*AO VIVO\*\* (stack local): `GET /me/units`/`/me/professionals` → Matriz/Revisor Demo; `GET /me/slots` → horários livres; `POST /me/book` → \*\*200\*\* (consulta com o patientId do paciente demo, SEM lead); re-book mesmo slot → \*\*409\*\*; token de equipe em `/me/book` → \*\*403\*\*. \*Falta só (do usuário):\* exercer a tela em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S15 COMPLETA\*\* (online booking nas 3 superfícies: público web, app do paciente, backend). Próxima no backlog: \*\*FASE 2 — S16 (Procedure/PriceTable/Plan)\*\* — começa o motor comercial/financeiro. Herdadas: date-picker nativo no app de booking, janela/raio de check-in opcional, device-build, extrair `@vero/mobile-shared`, modelos `Professional`/`Room`, editar/mover/cancelar na UI, cron diário da confirmação (S12), `MessageLog`, cache `rbac:perms`, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
 
 
 

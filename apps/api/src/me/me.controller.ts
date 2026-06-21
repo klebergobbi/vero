@@ -1,13 +1,17 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   Post,
+  Query,
 } from "@nestjs/common";
 import { Patient, PatientId } from "../common/decorators/patient.decorator";
 import { TenantId } from "../common/decorators/tenant-id.decorator";
+import { MeBookDto } from "./dto/book.dto";
+import { MeSlotsQueryDto } from "./dto/slots-query.dto";
 import { MeService } from "./me.service";
 
 /**
@@ -46,5 +50,39 @@ export class MeController {
     @Param("id") id: string,
   ) {
     return this.me.checkIn(tenantId, patientId, id);
+  }
+
+  /** GET /me/units — unidades da clínica (seletor de agendamento). */
+  @Get("units")
+  myUnits(@TenantId() tenantId: string) {
+    return this.me.myUnits(tenantId);
+  }
+
+  /** GET /me/professionals — profissionais da clínica (seletor de agendamento). */
+  @Get("professionals")
+  myProfessionals(@TenantId() tenantId: string) {
+    return this.me.myProfessionals(tenantId);
+  }
+
+  /** GET /me/slots — horários livres p/ o paciente agendar online (§S15c). */
+  @Get("slots")
+  mySlots(@TenantId() tenantId: string, @Query() query: MeSlotsQueryDto) {
+    return this.me.mySlots(
+      tenantId,
+      query.unitId,
+      query.professionalId,
+      query.date,
+    );
+  }
+
+  /** POST /me/book — paciente logado reserva um slot livre (sem virar lead). */
+  @Post("book")
+  @HttpCode(HttpStatus.OK)
+  book(
+    @TenantId() tenantId: string,
+    @PatientId() patientId: string,
+    @Body() dto: MeBookDto,
+  ) {
+    return this.me.book(tenantId, patientId, dto);
   }
 }

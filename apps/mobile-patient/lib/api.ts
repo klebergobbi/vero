@@ -38,6 +38,18 @@ export interface CheckInResult {
   alreadyCheckedIn: boolean;
 }
 
+/** Item de seletor (unidade ou profissional). */
+export interface NamedRef {
+  id: string;
+  name: string;
+}
+
+/** Slot livre para agendamento online (§S15c). */
+export interface OpenSlot {
+  start: string;
+  end: string;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -144,5 +156,31 @@ export const api = {
       method: "POST",
       accessToken,
       body: JSON.stringify({ token }),
+    }),
+
+  // --- Agendamento online do paciente logado (§S15c) ---
+
+  meUnits: (accessToken: string): Promise<NamedRef[]> =>
+    request<NamedRef[]>("/me/units", { accessToken }),
+
+  meProfessionals: (accessToken: string): Promise<NamedRef[]> =>
+    request<NamedRef[]>("/me/professionals", { accessToken }),
+
+  meSlots: (
+    accessToken: string,
+    params: { unitId: string; professionalId: string; date: string },
+  ): Promise<OpenSlot[]> => {
+    const qs = new URLSearchParams(params).toString();
+    return request<OpenSlot[]>(`/me/slots?${qs}`, { accessToken });
+  },
+
+  meBook: (
+    accessToken: string,
+    input: { unitId: string; professionalId: string; startsAt: string },
+  ): Promise<{ appointmentId: string; startsAt: string; status: string }> =>
+    request("/me/book", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(input),
     }),
 };

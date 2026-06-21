@@ -243,6 +243,12 @@ export default function Home() {
         )}
       </View>
 
+      <Link href="/book" asChild>
+        <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
+          <Text style={styles.bookBtnText}>+ Agendar consulta</Text>
+        </TouchableOpacity>
+      </Link>
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#2dd4bf" />
@@ -353,6 +359,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pushBtnText: { color: "#14283d", fontSize: 14, fontWeight: "700" },
+  bookBtn: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 4,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2dd4bf",
+  },
+  bookBtnText: { color: "#2dd4bf", fontSize: 15, fontWeight: "700" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   error: { color: "#ff8a80", fontSize: 15 },
   retry: { color: "#2dd4bf", fontSize: 15, fontWeight: "600" },

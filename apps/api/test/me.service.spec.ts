@@ -16,7 +16,10 @@ describe("MeService.confirmAppointment (S11)", () => {
         .fn()
         .mockResolvedValue([{ id: appt?.id, status: "CONFIRMED" }, {}]),
     } as unknown as PrismaService;
-    return { service: new MeService(prisma), prisma };
+    return {
+      service: new MeService(prisma, {} as never, {} as never, {} as never),
+      prisma,
+    };
   }
 
   it("confirma uma consulta SCHEDULED: muda status e registra evento", async () => {
@@ -72,7 +75,10 @@ describe("MeService.checkIn (S14)", () => {
         .fn()
         .mockResolvedValue([{ id: appt?.id, status: "CHECKED_IN" }, {}]),
     } as unknown as PrismaService;
-    return { service: new MeService(prisma), prisma };
+    return {
+      service: new MeService(prisma, {} as never, {} as never, {} as never),
+      prisma,
+    };
   }
 
   it("check-in de consulta SCHEDULED: status CHECKED_IN + entra na fila", async () => {

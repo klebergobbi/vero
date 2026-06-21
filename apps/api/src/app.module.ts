@@ -38,6 +38,7 @@ import { HealthModule } from "./health/health.module";
 import { MeModule } from "./me/me.module";
 import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
+import { PublicModule } from "./public/public.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 
@@ -112,6 +113,7 @@ import { RedisModule } from "./redis/redis.module";
     PatientModule,
     AppointmentModule,
     OrgModule,
+    PublicModule,
     MeModule,
     WhatsAppModule,
     PushModule,

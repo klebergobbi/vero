@@ -594,7 +594,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S15 — Agendamento online
+\#### \[ ] S15 — Agendamento online  ·  \*DIVIDIDA: \[x] S15a (backend: engine de slots + endpoints públicos GET slots/POST book com rate limit) · \[ ] S15b (tela pública de booking no web) · \[ ] S15c (fluxo no app do paciente logado)\*
 
 \*\*Depende de:\*\* S6
 
@@ -1485,6 +1485,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc --noEmit` do mobile)/`test` (88 pass, 2 skip)/`format:check`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*`npx expo export --platform android`\*\* empacotou o paciente (check-in resolve no Metro). \*\*AO VIVO (web, Playwright):\* após check-in (S14a) a agenda mostra \*\*"Na recepção (1)" — Paciente Demo chegou às 15:01\*\* (cartão verde) e o agendamento aparece com status \*\*"Check-in"\*\*.\* \*Falta só (do usuário):\* tocar o botão em device.
 
   \- \*Pendências p/ próxima:\* \*\*S14 COMPLETA.\*\* Próxima no backlog: \*\*S15 — Agendamento online\*\* (paciente marca sozinho dentro das regras; endpoint público de slots com rate limit forte; tela pública de booking + fluxo no app). Herdadas: device-build dos apps (usuário), janela/raio de check-in opcional, ler opt-out do backend no restart, extrair `@vero/mobile-shared` (api/auth/push muito duplicado), modelos `Professional`/`Room` dedicados, editar/mover/cancelar pela UI, filtro por unidade no mobile-pro, cron diário da confirmação (S12), `MessageLog`, receipts do Expo, cache `rbac:perms` no PERMISSION_CHANGED, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
+
+\- \*\*2026-06-21 · S15a — Agendamento online: backend (engine de slots + endpoints públicos)\*\*  ·  \*S15 DIVIDIDA em S15a (esta) + S15b (web público) + S15c (app)\*
+
+  \- \*O que foi feito:\* núcleo do agendamento online. \*\*Engine de slots\*\* puro/testável em `agenda.util.ts`: `wallTimeToUtc` (inverso do `localDayAndMinute` — converte wall-clock local da unidade → instante UTC via `tzOffsetMinutes`/Intl, sem dep; ex.: 14:00 SP → 17:00Z) e `computeOpenSlots` (fatia janelas de `Availability` em blocos de 30min, descarta os anteriores a `now+antecedência` e os que colidem com agendamentos existentes). \*\*Módulo `public`\*\* (rotas \*\*`@Public`\*\* — sem JWT; tenant resolvido pelo `slug` na URL): `GET /public/clinics/:slug/slots?unitId&professionalId&date` (só SLOTS LIVRES — nunca vaza a agenda interna) e `POST /public/clinics/:slug/book` (cria/reusa o paciente como \*\*lead `SITE`\*\* pelo telefone e cria a consulta). \*\*Rate limit FORTE\*\* via `@Throttle` sobre o global: slots 20/min, book 5/min. `PublicService.book` \*\*re-valida no servidor\*\* (o slot tem que estar entre os livres do dia: disponibilidade + antecedência + sem conflito) e \*\*reusa `AppointmentService.create`\*\* (re-checa conflito → 409, cobre corrida entre listar e reservar). Antecedência mínima 1h, slot 30min (constantes).
+
+  \- \*Arquivos tocados:\* `apps/api/src/appointment/agenda.util.ts` (+`tzOffsetMinutes`/`wallTimeToUtc`/`computeOpenSlots`), `apps/api/src/public/{public.module,public.controller,public.service}.ts` + `public/dto/{slots-query,book}.dto.ts` (novos), `apps/api/src/app.module.ts` (+PublicModule), teste `apps/api/test/slots.spec.ts` (5 casos do engine). Sem migration (reusa Availability/Appointment/Patient), sem dep nova. \*Reuso:\* validators `@IsBrazilianPhone`/`@IsCpf` do módulo patient; `FREEING_STATUSES`/`normalizeDigits` de @vero/types.
+
+  \- \*Decisões:\* engine \*\*puro\*\* em util (testável sem DB; o service só carrega janelas+agendamentos e chama). Tenant por \*\*slug na URL\*\* (rota pública, white-label-friendly); unidade/profissional de outro tenant → lista vazia (não vaza existência). Booking reusa o `AppointmentService` (não duplica conflito/disponibilidade) — dupla barreira (slot livre + assertNoConflict). Lead por \*\*telefone\*\* (reusa paciente existente no tenant; senão cria `SITE`). Conversão de fuso por Intl (sem luxon) — OK p/ SP (sem DST); anotado p/ fusos com horário de verão.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (93 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local; availability 09–11 criada p/ o profissional demo num domingo): `GET /slots` \*\*sem login\*\* → 4 slots (12:00–14:00Z); `POST /book` → \*\*201\*\* (lead "Joana Online"/SITE + consulta SCHEDULED); \*\*re-book do mesmo slot → 409\*\*; `GET /slots` de novo → 13:00 \*\*sumiu\*\*; tenant inexistente → \*\*404\*\*; telefone inválido → \*\*400\*\*; slot fora da janela → \*\*409\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S15b\*\* — tela PÚBLICA de booking no web (sem login: escolher unidade/profissional/data → `GET /slots` → escolher horário → nome+telefone → `POST /book`); precisa de um endpoint público p/ listar unidades/profissionais da clínica (hoje `GET /units`/`/professionals` exigem `appointment:read` — criar variante pública por slug, ou embutir no fluxo). \*\*S15c\*\* — fluxo no app do paciente logado (reusa `/public/.../book` ou um `/me/book`). Herdadas: as de sempre.
 
 
 

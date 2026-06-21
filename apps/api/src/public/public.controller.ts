@@ -15,6 +15,20 @@ import { PublicService } from "./public.service";
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
+  /** GET /public/clinics/:slug/units — unidades da clínica (para o seletor). */
+  @Get("units")
+  @Throttle({ global: { limit: 20, ttl: 60_000 } })
+  listUnits(@Param("slug") slug: string) {
+    return this.publicService.listUnits(slug);
+  }
+
+  /** GET /public/clinics/:slug/professionals — profissionais da clínica. */
+  @Get("professionals")
+  @Throttle({ global: { limit: 20, ttl: 60_000 } })
+  listProfessionals(@Param("slug") slug: string) {
+    return this.publicService.listProfessionals(slug);
+  }
+
   /** GET /public/clinics/:slug/slots — horários livres de um profissional num dia. */
   @Get("slots")
   @Throttle({ global: { limit: 20, ttl: 60_000 } })

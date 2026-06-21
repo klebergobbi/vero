@@ -10,7 +10,7 @@ const ACCESS_COOKIE = "vero_at";
 const REFRESH_COOKIE = "vero_rt";
 // Rotas públicas (sem sessão): login e a página de exclusão de conta exigida
 // pelas lojas (Apple 5.1.1 / Google), que precisa de URL pública sem autenticação.
-const PUBLIC_PATHS = ["/login", "/exclusao-de-conta"];
+const PUBLIC_PATHS = ["/login", "/exclusao-de-conta", "/agendar"];
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:3333";
 const isProd = process.env.NODE_ENV === "production";
 

@@ -51,6 +51,28 @@ export interface WaitListEntry {
   arrivedAt: string;
 }
 
+/** Slot livre devolvido pelo agendamento online público (§S15). */
+export interface OpenSlot {
+  start: string;
+  end: string;
+}
+
+/** Dados do booking público (paciente se identifica como lead). */
+export interface PublicBookInput {
+  unitId: string;
+  professionalId: string;
+  startsAt: string;
+  name: string;
+  phone: string;
+  cpf?: string;
+}
+
+export interface PublicBookResult {
+  appointmentId: string;
+  startsAt: string;
+  status: string;
+}
+
 /** Agendamento como devolvido pela API (instantes em ISO 8601). */
 export interface Appointment {
   id: string;
@@ -158,6 +180,44 @@ export function createApiClient(opts: ApiClientOptions) {
 
     listWaitList: (): Promise<WaitListEntry[]> =>
       request<WaitListEntry[]>(baseUrl, "/waitlist", { accessToken }),
+
+    // --- Agendamento online PÚBLICO (sem auth; tenant pelo slug — §S15) ---
+
+    listClinicUnits: (slug: string): Promise<UnitSummary[]> =>
+      request<UnitSummary[]>(
+        baseUrl,
+        `/public/clinics/${encodeURIComponent(slug)}/units`,
+        {},
+      ),
+
+    listClinicProfessionals: (slug: string): Promise<ProfessionalSummary[]> =>
+      request<ProfessionalSummary[]>(
+        baseUrl,
+        `/public/clinics/${encodeURIComponent(slug)}/professionals`,
+        {},
+      ),
+
+    listClinicSlots: (
+      slug: string,
+      params: { unitId: string; professionalId: string; date: string },
+    ): Promise<OpenSlot[]> => {
+      const qs = new URLSearchParams(params).toString();
+      return request<OpenSlot[]>(
+        baseUrl,
+        `/public/clinics/${encodeURIComponent(slug)}/slots?${qs}`,
+        {},
+      );
+    },
+
+    bookClinic: (
+      slug: string,
+      input: PublicBookInput,
+    ): Promise<PublicBookResult> =>
+      request<PublicBookResult>(
+        baseUrl,
+        `/public/clinics/${encodeURIComponent(slug)}/book`,
+        { method: "POST", body: JSON.stringify(input) },
+      ),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

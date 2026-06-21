@@ -1498,6 +1498,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
   \- \*Pendências p/ próxima:\* \*\*S15b\*\* — tela PÚBLICA de booking no web (sem login: escolher unidade/profissional/data → `GET /slots` → escolher horário → nome+telefone → `POST /book`); precisa de um endpoint público p/ listar unidades/profissionais da clínica (hoje `GET /units`/`/professionals` exigem `appointment:read` — criar variante pública por slug, ou embutir no fluxo). \*\*S15c\*\* — fluxo no app do paciente logado (reusa `/public/.../book` ou um `/me/book`). Herdadas: as de sempre.
 
+\- \*\*2026-06-21 · S15b — Agendamento online: tela pública de booking no web\*\*
+
+  \- \*O que foi feito:\* página PÚBLICA de booking (sem login). \*\*Backend (pequenas adições):\* endpoints públicos `GET /public/clinics/:slug/units` e `/professionals` (rate limit 20/min) reusando `OrgService` (OrgModule passou a exportá-lo; PublicModule o importa) — assim a tela pública lista a clínica sem exigir `appointment:read`.\* \*\*api-client:\* +`listClinicUnits`/`listClinicProfessionals`/`listClinicSlots`/`bookClinic` (sem token) + tipos `OpenSlot`/`PublicBookInput`/`PublicBookResult`.\* \*\*Web:\* rota `app/agendar/[slug]/` liberada no `middleware` (PUBLIC_PATHS +`/agendar`). `page.tsx` (Server Component) busca units+professionals server-side (BFF, sem expor URL da API ao browser) e em clínica inexistente → `notFound()` (404). `actions.ts` (Server Actions `getSlotsAction`/`bookAction` com cliente público sem token; traduz 409/400/404 em msg segura). `booking-form.tsx` (client): máquina de estados — escolher unidade/profissional/data → "Ver horários" (chama getSlotsAction) → grade de slots clicáveis → nome+telefone → "Confirmar" (bookAction) → tela de sucesso. `useTransition` p/ os estados de carregando.\*
+
+  \- \*Arquivos tocados:\* `apps/api/src/org/org.module.ts` (exporta OrgService), `apps/api/src/public/{public.module,public.service,public.controller}.ts` (+listagens), `packages/api-client/src/index.ts` (4 métodos públicos + tipos), `apps/web/middleware.ts` (+/agendar público), `apps/web/app/agendar/[slug]/{page.tsx,actions.ts,booking-form.tsx}` (novos). Sem migration, sem dep nova.
+
+  \- \*Decisões:\* booking público via \*\*BFF\*\* (Server Actions chamam a API server-side; URL da API não vaza ao browser, §2/§5) — cliente público é `createApiClient({baseUrl})` SEM token. Slot exibido em hora local (`toLocaleTimeString` pt-BR — para clínica/usuário BR no mesmo fuso). Listagem pública de unidade/profissional reusa `OrgService` (nomes de profissionais são info pública de um site de clínica). Página em `/agendar/[slug]` (white-label por slug).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (93 pass)/`format:check`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/agendar/vero-demo` carrega ("Agendar consulta"); escolher Matriz/Revisor Demo + data → grade de slots (09:00/09:30/10:30 — o 10:00 já ocupado não aparece) → escolher 09:00 + nome/telefone → \*\*"Agendamento confirmado! Até breve."\*\*; no banco: lead \*\*"Carlos Booking Web" (SITE)\*\* + consulta 12:00Z SCHEDULED.\* \*Incidente:\* cache `.next` corrompeu (`Cannot find module vendor-chunks/@swc+helpers`) após adicionar a rota via hot-reload — resolvido com `rm -rf apps/web/.next` + restart.
+
+  \- \*Pendências p/ próxima:\* \*\*S15c\*\* — fluxo de agendamento online no \*\*app do paciente logado\*\* (escolher profissional/data → slots → marcar). Pode reusar `/public/.../slots` p/ listar e, para reservar como paciente conhecido, um `POST /me/book` (cria a consulta com o `patientId` do JWT, sem virar lead) — ou reusar o book público. Herdadas: as de sempre.
+
 
 
 \## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)

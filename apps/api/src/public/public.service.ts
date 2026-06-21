@@ -13,6 +13,7 @@ import {
 } from "../appointment/agenda.util";
 import { AppointmentService } from "../appointment/appointment.service";
 import { TenantScope } from "../common/repositories/tenant-scoped.helper";
+import { OrgService } from "../org/org.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { BookDto } from "./dto/book.dto";
 
@@ -36,7 +37,20 @@ export class PublicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointments: AppointmentService,
+    private readonly org: OrgService,
   ) {}
+
+  /** Unidades da clínica (público, por slug) — para a tela de booking. */
+  async listUnits(slug: string) {
+    const tenant = await this.resolveTenant(slug);
+    return this.org.listUnits(tenant.id);
+  }
+
+  /** Profissionais da clínica (público, por slug) — para a tela de booking. */
+  async listProfessionals(slug: string) {
+    const tenant = await this.resolveTenant(slug);
+    return this.org.listProfessionals(tenant.id);
+  }
 
   async listOpenSlots(
     slug: string,

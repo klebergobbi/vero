@@ -638,7 +638,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S18 — Contrato + Termos + assinatura eletrônica  ·  \*DIVIDIDA: \[x] S18a (backend: schema + EsignService + gerar/assinar/verificar) · \[ ] S18b (tela de assinatura)\*
+\#### \[x] S18 — Contrato + Termos + assinatura eletrônica  ·  \*DIVIDIDA: \[x] S18a (backend: schema + EsignService + gerar/assinar/verificar) · \[x] S18b (tela de assinatura: app do paciente + gerar no web)\*
 
 \*\*Depende de:\*\* S17
 
@@ -1581,6 +1581,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (107 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (orçamento aprovado da S17): gerar contrato → verify \*\*não-assinado `valid:false`\*\* (integrityOk true, signaturesOk false) → gerar de novo → \*\*409\*\* → paciente vê (DRAFT) → \*\*assinar → SIGNED + 1 assinatura com IP\*\* → verify pós-assinatura \*\*`valid:true`\*\* → re-assinar → \*\*409\*\*. Imutabilidade/adulteração coberta por unit test (body alterado → integrityOk false).
 
   \- \*Pendências p/ próxima:\* \*\*S18b\*\* — tela de assinatura: o paciente abre o contrato (`GET /me/contracts/:id` mostra `body`+status), lê e toca "Assinar" (`POST /me/contracts/:id/sign`) — no app do paciente (mobile) e/ou web; a equipe vê o contrato + verify na web. api-client/lib +métodos. Herdadas: as de sempre + integração ICP real quando houver credenciais.
+
+\- \*\*2026-06-21 · S18b — Assinatura: tela no app do paciente + gerar contrato no web (FECHA a S18)\*\*
+
+  \- \*O que foi feito:\* fechou o fluxo de contrato nas superfícies de cliente. \*\*Mobile (paciente):\* `lib/api.ts` +`myContracts`/`getContract`/`signContract` (+tipos `ContractSummary`/`ContractDetail`); tela `app/contracts.tsx` (lista com badge DRAFT="Aguardando assinatura"/SIGNED) → `app/contract/[id].tsx` (mostra o `body` em monospace + botão \*\*"Assinar contrato"\*\* só se DRAFT, com `Alert` de confirmação avisando que registra data/hora/IP → `POST /me/contracts/:id/sign` → mostra "✓ Assinado por … em …"); link "Meus contratos" na home (ao lado de "Agendar consulta").\* \*\*Web (equipe):\* `getBudget` passou a incluir `contract {id,status}`; api-client +`generateContract` + `BudgetDetail.contract`; no detalhe do orçamento (`budget-detail.tsx`), quando \*\*APPROVED\*\*, seção "Contrato": botão \*\*"Gerar contrato"\*\* (se não há) ou status ("Aguardando assinatura do paciente"/"Assinado pelo paciente"); Server Action `generateContractAction`.\*
+
+  \- \*Arquivos tocados:\* `apps/mobile-patient/{lib/api.ts,app/contracts.tsx (novo),app/contract/[id].tsx (novo),app/index.tsx}`, `apps/api/src/budget/budget.service.ts` (getBudget +contract), `packages/api-client/src/index.ts` (+generateContract +tipo), `apps/web/app/orcamentos/{actions.ts,[id]/budget-detail.tsx}`. Sem migration, sem dep nova.
+
+  \- \*Decisões:\* assinatura no app do paciente (logado, owner-scoped) — o `@Ip()` do backend captura o IP real na trilha. `Alert` de confirmação deixa explícito o registro de data/hora/IP (transparência). No web a equipe \*\*gera\*\* e vê o status (não assina pelo paciente). Sem página web dedicada de visualização/verify do contrato p/ a equipe ainda (o backend `GET /contracts/:id` + `/verify` existem; UI fica como melhoria) — o status na tela do orçamento já fecha o loop do aceite.
+
+  \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc` do mobile)/`test` (107 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*`npx expo export`\*\* empacotou o paciente (telas `contracts` + `contract/[id]` resolvem no Metro). \*\*AO VIVO (web, Playwright):\* detalhe do orçamento APROVADO → \*\*"Gerar contrato" → "Aguardando assinatura do paciente"\*\* (contrato DRAFT criado).\* Assinatura em si (`/me/contracts/:id/sign`) validada AO VIVO na S18a; \*falta só (do usuário):\* assinar pela tela em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S18 COMPLETA.\*\* Próxima no backlog: \*\*S19 — Charge/Installment + Asaas\*\* (transformar venda em cobranças PIX/boleto/cartão; `Charge`+`Installment`+`PixCharge`+`Boleto`+`CardTransaction`; `integrations/asaas` proxy backend; aprovar orçamento gera parcelas + cobrança via Asaas sandbox). Herdadas: integração ICP real, página web de verify do contrato p/ equipe, navegação comum web, as de sempre.
 
 
 

@@ -52,6 +52,7 @@ export class BudgetService {
       include: {
         patient: { select: { name: true } },
         items: { orderBy: { createdAt: "asc" } },
+        contract: { select: { id: true, status: true } },
       },
     });
     return scope.ensureOwned(budget);

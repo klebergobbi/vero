@@ -44,6 +44,21 @@ export interface NamedRef {
   name: string;
 }
 
+/** Contrato — resumo (§S18). */
+export interface ContractSummary {
+  id: string;
+  status: string;
+  createdAt: string;
+  signedAt: string | null;
+}
+
+/** Contrato — detalhe (corpo + assinaturas). */
+export interface ContractDetail extends ContractSummary {
+  body: string;
+  contentHash: string;
+  signatures: { signerName: string; signedAt: string }[];
+}
+
 /** Slot livre para agendamento online (§S15c). */
 export interface OpenSlot {
   start: string;
@@ -182,5 +197,24 @@ export const api = {
       method: "POST",
       accessToken,
       body: JSON.stringify(input),
+    }),
+
+  // --- Contratos do paciente (§S18) ---
+
+  myContracts: (accessToken: string): Promise<ContractSummary[]> =>
+    request<ContractSummary[]>("/me/contracts", { accessToken }),
+
+  getContract: (accessToken: string, id: string): Promise<ContractDetail> =>
+    request<ContractDetail>(`/me/contracts/${id}`, { accessToken }),
+
+  signContract: (
+    accessToken: string,
+    id: string,
+    signerName?: string,
+  ): Promise<ContractDetail> =>
+    request<ContractDetail>(`/me/contracts/${id}/sign`, {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(signerName ? { signerName } : {}),
     }),
 };

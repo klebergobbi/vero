@@ -243,11 +243,18 @@ export default function Home() {
         )}
       </View>
 
-      <Link href="/book" asChild>
-        <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
-          <Text style={styles.bookBtnText}>+ Agendar consulta</Text>
-        </TouchableOpacity>
-      </Link>
+      <View style={styles.actionsRow}>
+        <Link href="/book" asChild>
+          <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
+            <Text style={styles.bookBtnText}>+ Agendar consulta</Text>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/contracts" asChild>
+          <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
+            <Text style={styles.bookBtnText}>Meus contratos</Text>
+          </TouchableOpacity>
+        </Link>
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -359,10 +366,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pushBtnText: { color: "#14283d", fontSize: 14, fontWeight: "700" },
-  bookBtn: {
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
     marginHorizontal: 20,
     marginTop: 8,
     marginBottom: 4,
+  },
+  bookBtn: {
+    flex: 1,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",

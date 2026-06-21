@@ -6,9 +6,16 @@ import type { BudgetDetail, ProcedureItem } from "@vero/api-client";
 import {
   type ActionState,
   addItemAction,
+  generateContractAction,
   removeItemAction,
   setStatusAction,
 } from "../actions";
+
+const CONTRACT_LABELS: Record<string, string> = {
+  DRAFT: "Aguardando assinatura do paciente",
+  SIGNED: "Assinado pelo paciente",
+  CANCELLED: "Cancelado",
+};
 
 const STATUS_LABELS: Record<string, string> = {
   OPEN: "Aberto",
@@ -191,6 +198,31 @@ export function BudgetDetailView({
           mais ser alterado.
         </p>
       )}
+
+      {budget.status === "APPROVED" ? (
+        <section className="border-t border-slate-100 pt-4">
+          <h2 className="mb-2 text-sm font-medium text-slate-700">Contrato</h2>
+          {budget.contract ? (
+            <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              {CONTRACT_LABELS[budget.contract.status] ??
+                budget.contract.status}
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(() => {
+                  void generateContractAction(budget.id);
+                })
+              }
+              className="rounded-lg bg-vero-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-vero-700 disabled:opacity-60"
+            >
+              Gerar contrato
+            </button>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -100,3 +100,13 @@ export async function setStatusAction(
   }
   revalidatePath(`/orcamentos/${budgetId}`);
 }
+
+export async function generateContractAction(budgetId: string): Promise<void> {
+  try {
+    const api = await serverApi();
+    await api.generateContract(budgetId);
+  } catch {
+    // fail-soft: a tela recarrega; se já existir, o contrato aparece
+  }
+  revalidatePath(`/orcamentos/${budgetId}`);
+}

@@ -109,6 +109,7 @@ export interface BudgetDetail extends BudgetSummary {
   notes: string | null;
   decidedAt: string | null;
   items: BudgetItemDetail[];
+  contract: { id: string; status: string } | null;
 }
 
 /** Dados do booking público (paciente se identifica como lead). */
@@ -359,6 +360,14 @@ export function createApiClient(opts: ApiClientOptions) {
       request<BudgetSummary>(baseUrl, `/budgets/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status }),
+        accessToken,
+      }),
+
+    /** Gera o contrato de um orçamento aprovado (§S18). */
+    generateContract: (budgetId: string): Promise<{ id: string }> =>
+      request<{ id: string }>(baseUrl, "/contracts", {
+        method: "POST",
+        body: JSON.stringify({ budgetId }),
         accessToken,
       }),
 

@@ -84,6 +84,33 @@ export interface PriceItem {
   plan: { name: string };
 }
 
+/** Orçamento — resumo para a listagem (§S17). */
+export interface BudgetSummary {
+  id: string;
+  patientId: string;
+  status: string;
+  totalCents: number;
+  createdAt: string;
+  patient: { name: string };
+}
+
+/** Item de orçamento (snapshot). */
+export interface BudgetItemDetail {
+  id: string;
+  procedureId: string;
+  description: string;
+  quantity: number;
+  unitPriceCents: number;
+}
+
+/** Orçamento detalhado (com itens). */
+export interface BudgetDetail extends BudgetSummary {
+  planId: string | null;
+  notes: string | null;
+  decidedAt: string | null;
+  items: BudgetItemDetail[];
+}
+
 /** Dados do booking público (paciente se identifica como lead). */
 export interface PublicBookInput {
   unitId: string;
@@ -283,6 +310,55 @@ export function createApiClient(opts: ApiClientOptions) {
       request<PriceItem>(baseUrl, "/prices", {
         method: "POST",
         body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    // --- Orçamentos (§S17, gated budget:read|write) ---
+
+    listBudgets: (): Promise<BudgetSummary[]> =>
+      request<BudgetSummary[]>(baseUrl, "/budgets", { accessToken }),
+
+    createBudget: (input: {
+      patientId: string;
+      planId?: string;
+      notes?: string;
+    }): Promise<BudgetDetail> =>
+      request<BudgetDetail>(baseUrl, "/budgets", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    getBudget: (id: string): Promise<BudgetDetail> =>
+      request<BudgetDetail>(baseUrl, `/budgets/${id}`, { accessToken }),
+
+    addBudgetItem: (
+      id: string,
+      input: {
+        procedureId: string;
+        quantity?: number;
+        unitPriceCents?: number;
+      },
+    ): Promise<BudgetDetail> =>
+      request<BudgetDetail>(baseUrl, `/budgets/${id}/items`, {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    removeBudgetItem: (id: string, itemId: string): Promise<BudgetDetail> =>
+      request<BudgetDetail>(baseUrl, `/budgets/${id}/items/${itemId}`, {
+        method: "DELETE",
+        accessToken,
+      }),
+
+    setBudgetStatus: (
+      id: string,
+      status: "APPROVED" | "REJECTED",
+    ): Promise<BudgetSummary> =>
+      request<BudgetSummary>(baseUrl, `/budgets/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
         accessToken,
       }),
 

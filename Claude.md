@@ -624,7 +624,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S17 — Orçamento (Budget)  ·  \*DIVIDIDA: \[x] S17a (backend: schema Budget/BudgetItem + módulo, total server-side, status) · \[ ] S17b (tela web)\*
+\#### \[x] S17 — Orçamento (Budget)  ·  \*DIVIDIDA: \[x] S17a (backend: schema Budget/BudgetItem + módulo, total server-side, status) · \[x] S17b (tela web)\*
 
 \*\*Depende de:\*\* S16
 
@@ -1557,6 +1557,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (102 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local, catálogo da S16): criar orçamento p/ paciente demo (convênio Particular) → add Limpeza×2 → \*\*total 24000 (preço 12000 puxado do catálogo)\*\* → add item avulso 5000 → \*\*total 29000\*\* (recalculado) → aprovar → \*\*APPROVED + decidedAt set\*\* → add item em aprovado → \*\*409\*\*. Anti-IDOR/guards cobertos por unit test.
 
   \- \*Pendências p/ próxima:\* \*\*S17b\*\* — tela web de orçamento (criar p/ paciente, adicionar itens do catálogo, ver total, mudar status); api-client +métodos; precisa de seletor de paciente (já há `listPatients`) + procedimentos (`listProcedures` da S16). Herdadas: as de sempre.
+
+\- \*\*2026-06-21 · S17b — Orçamento: tela web (FECHA a S17)\*\*
+
+  \- \*O que foi feito:\* UI de orçamentos no web. \*\*api-client:\* +`listBudgets`/`createBudget`/`getBudget`/`addBudgetItem`/`removeBudgetItem`/`setBudgetStatus` + tipos `BudgetSummary`/`BudgetItemDetail`/`BudgetDetail`.\* \*\*Web (2 telas):\* `/orcamentos` (lista: paciente/total/status + form de criação com seletor de paciente e convênio → `redirect` p/ o detalhe ao criar) e `/orcamentos/[id]` (detalhe: cabeçalho com total grande, lista de itens com subtotal e botão remover, form de adicionar item — procedimento + qtd + preço opcional —, botões Aprovar/Recusar). Só mostra edição/ações se status OPEN; decidido mostra aviso de imutabilidade. Server Actions (`createBudgetAction` com `redirect`; `addItemAction` via `useActionState` com `.bind(budgetId)`; `removeItemAction`/`setStatusAction` via `useTransition` fail-soft).\*
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (6 métodos + 3 tipos), `apps/web/app/orcamentos/{page.tsx,actions.ts,create-form.tsx}` + `orcamentos/[id]/{page.tsx,budget-detail.tsx}` (novos). Sem backend novo (consome S17a), sem migration.
+
+  \- \*Decisões:\* total e subtotais SEMPRE vêm do backend; o front só exibe (e mostra `qty*unitPrice` por item p/ leitura). Preço do item em R$→centavos (como no catálogo). Edição condicionada a OPEN (espelha a regra do backend). `createBudget` redireciona ao detalhe (fluxo natural: criar → adicionar itens). Sem seletor de "preço do catálogo vs avulso" explícito — se o convênio tem preço cadastrado e o campo preço fica vazio, o backend usa o do catálogo; senão exige o valor.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (102 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/orcamentos` → criar orçamento p/ paciente → detalhe → adicionar \*\*2× Clareamento R$80 → total R$ 160,00\*\* (calculado no backend) → \*\*Aprovar → "Status: Aprovado · não pode mais ser alterado"\*\* (form some).\* \*Incidentes recorrentes:\* `rm -rf apps/web/.next` ao adicionar rotas; rate limit de login 5/min.
+
+  \- \*Pendências p/ próxima:\* \*\*S17 COMPLETA.\*\* Próxima no backlog: \*\*S18 — Contrato + Termos + assinatura eletrônica\*\* (fechar orçamento aprovado com documento assinado ICP; `Contract`+`Consent`; `integrations/esign`; evidência IP+timestamp+hash; depende de S17). Herdadas: navegação comum web (menu agenda/catalogo/orcamentos), editar/remover catálogo pela UI, gatear UI por permission, invalidar cache `rbac:perms`, date-picker no app, extrair `@vero/mobile-shared`, modelos Professional/Room, `docker-compose.yml`, `start`→`dist/src/main.js`, lockout.
 
 
 

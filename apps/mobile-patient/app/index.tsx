@@ -49,6 +49,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
   const [pushOn, setPushOn] = useState(false);
   const [optedOut, setOptedOut] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -160,6 +161,41 @@ export default function Home() {
     [accessToken, refresh],
   );
 
+  const checkIn = useCallback(
+    async (id: string) => {
+      if (!accessToken) return;
+      setCheckingId(id);
+      const apply = (status: string) =>
+        setItems((prev) =>
+          prev.map((it) => (it.id === id ? { ...it, status } : it)),
+        );
+      try {
+        const res = await api.checkIn(accessToken, id);
+        apply(res.status);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          const fresh = await refresh();
+          if (fresh) {
+            try {
+              const res = await api.checkIn(fresh, id);
+              apply(res.status);
+              return;
+            } catch {
+              // cai no alerta abaixo
+            }
+          }
+        }
+        Alert.alert(
+          "Não foi possível fazer check-in",
+          "Tente novamente em instantes.",
+        );
+      } finally {
+        setCheckingId(null);
+      }
+    },
+    [accessToken, refresh],
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -250,6 +286,20 @@ export default function Home() {
                   )}
                 </TouchableOpacity>
               ) : null}
+              {item.status === "SCHEDULED" || item.status === "CONFIRMED" ? (
+                <TouchableOpacity
+                  style={styles.checkInBtn}
+                  accessibilityRole="button"
+                  disabled={checkingId === item.id}
+                  onPress={() => void checkIn(item.id)}
+                >
+                  {checkingId === item.id ? (
+                    <ActivityIndicator color="#2dd4bf" />
+                  ) : (
+                    <Text style={styles.checkInText}>Fazer check-in</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
         />
@@ -327,6 +377,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   confirmText: { color: "#14283d", fontSize: 15, fontWeight: "700" },
+  checkInBtn: {
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2dd4bf",
+  },
+  checkInText: { color: "#2dd4bf", fontSize: 15, fontWeight: "700" },
   cardStatus: {
     color: "#14283d",
     backgroundColor: "#2dd4bf",

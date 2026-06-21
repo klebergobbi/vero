@@ -31,6 +31,13 @@ export interface ConfirmResult {
   alreadyConfirmed: boolean;
 }
 
+/** Retorno de POST /me/appointments/:id/checkin. */
+export interface CheckInResult {
+  id: string;
+  status: string;
+  alreadyCheckedIn: boolean;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -89,6 +96,16 @@ export const api = {
     appointmentId: string,
   ): Promise<ConfirmResult> =>
     request<ConfirmResult>(`/me/appointments/${appointmentId}/confirm`, {
+      method: "POST",
+      accessToken,
+    }),
+
+  /** Self check-in ao chegar na própria consulta (idempotente — §S14). */
+  checkIn: (
+    accessToken: string,
+    appointmentId: string,
+  ): Promise<CheckInResult> =>
+    request<CheckInResult>(`/me/appointments/${appointmentId}/checkin`, {
       method: "POST",
       accessToken,
     }),

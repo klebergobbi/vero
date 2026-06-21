@@ -41,6 +41,16 @@ export interface ProfessionalSummary {
   name: string;
 }
 
+/** Entrada da fila de espera (self check-in — §S14). */
+export interface WaitListEntry {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  unitId: string;
+  status: string;
+  arrivedAt: string;
+}
+
 /** Agendamento como devolvido pela API (instantes em ISO 8601). */
 export interface Appointment {
   id: string;
@@ -145,6 +155,9 @@ export function createApiClient(opts: ApiClientOptions) {
       request<ProfessionalSummary[]>(baseUrl, "/professionals", {
         accessToken,
       }),
+
+    listWaitList: (): Promise<WaitListEntry[]> =>
+      request<WaitListEntry[]>(baseUrl, "/waitlist", { accessToken }),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

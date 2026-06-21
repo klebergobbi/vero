@@ -580,7 +580,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S14 — Self check-in  ·  \*DIVIDIDA: \[x] S14a (backend: WaitList + check-in idempotente + GET /waitlist) · \[ ] S14b (mobile: botão de check-in + indicador de fila na agenda web)\*
+\#### \[x] S14 — Self check-in  ·  \*DIVIDIDA: \[x] S14a (backend: WaitList + check-in idempotente + GET /waitlist) · \[x] S14b (mobile: botão de check-in + indicador de fila na agenda web)\*
 
 \*\*Depende de:\*\* S6, S8
 
@@ -1473,6 +1473,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (88 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local PG 5455/Redis 6395, API 3333): check-in de consulta SCHEDULED → \*\*200 CHECKED_IN\*\*; 2ª vez → \*\*idempotente\*\* (`alreadyCheckedIn:true`); `GET /waitlist` (recepção) → \*\*1 entrada WAITING\*\* (não duplicou); staff na rota de paciente → \*\*403\*\* (faixa @Patient). \*Lembrete:\* parar a API antes de `prisma generate` (a DLL do query engine fica travada pelo processo node — deu EPERM).
 
   \- \*Pendências p/ próxima:\* \*\*S14b\*\* — mobile-patient: botão \*\*"Fazer check-in"\*\* nos cards de consulta (chama `POST /me/appointments/:id/checkin`, reusa o `lib/api`+refresh-on-401, idealmente só quando `CONFIRMED`/perto do horário); web: \*\*indicador de fila\*\* na agenda (consome `GET /waitlist` via api-client `listWaitList()`, mostra quem chegou em tempo real). Herdadas: device-build, janela/raio de check-in opcional, extrair `@vero/mobile-shared`, modelos Professional/Room, editar/mover/cancelar na UI, `docker-compose.yml`, cache `rbac:perms`, `start`→`dist/src/main.js`, lockout.
+
+\- \*\*2026-06-21 · S14b — Self check-in: botão no app + indicador de fila na web (FECHA a S14)\*\*
+
+  \- \*O que foi feito:\* completou o aceite da S14 — o paciente faz check-in pelo app e a recepção vê na agenda web. \*\*mobile-patient\*\*: `lib/api.ts` +`checkIn` (+tipo `CheckInResult`); `app/index.tsx` ganhou o handler `checkIn` (espelha o `confirm` da S11 — atualização otimista do status + refresh-on-401 + `Alert` em falha) e o botão \*\*"Fazer check-in"\*\* (outline) nos cards `SCHEDULED`/`CONFIRMED` (o backend aceita ambos; no `SCHEDULED` aparece junto do "Confirmar presença", no `CONFIRMED` sozinho). \*\*web\*\*: `@vero/api-client` +`listWaitList()` (+tipo `WaitListEntry`); `app/agenda/page.tsx` busca a fila no `Promise.all` e renderiza a seção \*\*"Na recepção (N)"\*\* (cartão verde com nome do paciente — mapeado de `patientId` como o resto da agenda — e "chegou às HH:MM"); só aparece quando há alguém na fila. Sem backend novo (consome S14a).
+
+  \- \*Arquivos tocados:\* `apps/mobile-patient/{lib/api.ts,app/index.tsx}`, `packages/api-client/src/index.ts` (tipo + método), `apps/web/app/agenda/page.tsx`. Sem dep nova, sem migration.
+
+  \- \*Decisões:\* botão de check-in em \*\*SCHEDULED e CONFIRMED\*\* (não só CONFIRMED) — o backend permite os dois (CHECKABLE), então um paciente que chega sem ter confirmado também consegue; estilo \*outline\* p/ distinguir do "Confirmar presença" (sólido). Indicador da fila \*\*condicional\*\* (`waitList.length > 0`) p/ não poluir a agenda vazia. Web mapeia `patientId`→nome reusando o `patientName` já montado (S7b) — sem endpoint mais rico.
+
+  \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc --noEmit` do mobile)/`test` (88 pass, 2 skip)/`format:check`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*`npx expo export --platform android`\*\* empacotou o paciente (check-in resolve no Metro). \*\*AO VIVO (web, Playwright):\* após check-in (S14a) a agenda mostra \*\*"Na recepção (1)" — Paciente Demo chegou às 15:01\*\* (cartão verde) e o agendamento aparece com status \*\*"Check-in"\*\*.\* \*Falta só (do usuário):\* tocar o botão em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S14 COMPLETA.\*\* Próxima no backlog: \*\*S15 — Agendamento online\*\* (paciente marca sozinho dentro das regras; endpoint público de slots com rate limit forte; tela pública de booking + fluxo no app). Herdadas: device-build dos apps (usuário), janela/raio de check-in opcional, ler opt-out do backend no restart, extrair `@vero/mobile-shared` (api/auth/push muito duplicado), modelos `Professional`/`Room` dedicados, editar/mover/cancelar pela UI, filtro por unidade no mobile-pro, cron diário da confirmação (S12), `MessageLog`, receipts do Expo, cache `rbac:perms` no PERMISSION_CHANGED, `start`→`dist/src/main.js`, `docker-compose.yml`, lockout.
 
 
 

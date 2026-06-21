@@ -3,6 +3,7 @@ import type {
   PatientSummary,
   ProfessionalSummary,
   UnitSummary,
+  WaitListEntry,
 } from "@vero/api-client";
 import { serverApi } from "../../lib/api";
 import { logoutAction } from "../login/actions";
@@ -41,19 +42,28 @@ export default async function AgendaPage() {
   let patients: PatientSummary[] = [];
   let units: UnitSummary[] = [];
   let professionals: ProfessionalSummary[] = [];
+  let waitList: WaitListEntry[] = [];
   let loadError = false;
   try {
-    [appointments, patients, units, professionals] = await Promise.all([
-      api.listAppointments(),
-      api.listPatients(),
-      api.listUnits(),
-      api.listProfessionals(),
-    ]);
+    [appointments, patients, units, professionals, waitList] =
+      await Promise.all([
+        api.listAppointments(),
+        api.listPatients(),
+        api.listUnits(),
+        api.listProfessionals(),
+        api.listWaitList(),
+      ]);
   } catch {
     loadError = true;
   }
 
   const patientName = new Map(patients.map((p) => [p.id, p.name]));
+
+  const arrivedTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -78,6 +88,30 @@ export default async function AgendaPage() {
         <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           Não foi possível carregar a agenda agora. Tente recarregar a página.
         </div>
+      ) : null}
+
+      {waitList.length > 0 ? (
+        <section className="mb-10">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-800">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            Na recepção ({waitList.length})
+          </h2>
+          <ul className="divide-y divide-emerald-100 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50">
+            {waitList.map((w) => (
+              <li
+                key={w.id}
+                className="flex items-center justify-between gap-4 px-4 py-3"
+              >
+                <span className="font-medium text-slate-800">
+                  {patientName.get(w.patientId) ?? "Paciente"}
+                </span>
+                <span className="text-sm text-emerald-700">
+                  chegou às {arrivedTime(w.arrivedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <section className="mb-10">

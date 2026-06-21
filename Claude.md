@@ -638,7 +638,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S18 — Contrato + Termos + assinatura eletrônica
+\#### \[ ] S18 — Contrato + Termos + assinatura eletrônica  ·  \*DIVIDIDA: \[x] S18a (backend: schema + EsignService + gerar/assinar/verificar) · \[ ] S18b (tela de assinatura)\*
 
 \*\*Depende de:\*\* S17
 
@@ -1569,6 +1569,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (102 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/orcamentos` → criar orçamento p/ paciente → detalhe → adicionar \*\*2× Clareamento R$80 → total R$ 160,00\*\* (calculado no backend) → \*\*Aprovar → "Status: Aprovado · não pode mais ser alterado"\*\* (form some).\* \*Incidentes recorrentes:\* `rm -rf apps/web/.next` ao adicionar rotas; rate limit de login 5/min.
 
   \- \*Pendências p/ próxima:\* \*\*S17 COMPLETA.\*\* Próxima no backlog: \*\*S18 — Contrato + Termos + assinatura eletrônica\*\* (fechar orçamento aprovado com documento assinado ICP; `Contract`+`Consent`; `integrations/esign`; evidência IP+timestamp+hash; depende de S17). Herdadas: navegação comum web (menu agenda/catalogo/orcamentos), editar/remover catálogo pela UI, gatear UI por permission, invalidar cache `rbac:perms`, date-picker no app, extrair `@vero/mobile-shared`, modelos Professional/Room, `docker-compose.yml`, `start`→`dist/src/main.js`, lockout.
+
+\- \*\*2026-06-21 · S18a — Contrato + assinatura eletrônica: backend (FECHA o backend da S18)\*\*  ·  \*S18 DIVIDIDA em S18a (esta) + S18b (tela de assinatura)\*
+
+  \- \*O que foi feito:\* motor de contrato + assinatura eletrônica com trilha de evidência. Schema: \*\*`Contract`\*\* (budgetId `@unique` = 1 por orçamento, patientId, `body` snapshot imutável, `contentHash` sha256, `status` enum `ContractStatus` DRAFT/SIGNED/CANCELLED, `signedAt`, soft-delete) + \*\*`Signature`\*\* (§6 Consent/Signature; §7 trilha: `signerName`, `signedHash`, `ip`, `userAgent?`, `method` CLICK/ICP, `signedAt`) + migration aditiva. \*\*`EsignService`\*\* (integrations/esign, puro/testável): `buildContractBody` (texto determinístico do orçamento), `contentHash` (sha256 hex), `buildEvidence` (signedHash=contentHash no momento), `verify` (re-hash do body == contentHash E assinaturas == contentHash → tamper-evident). Módulo `contract`: `ContractService` tenant-scoped (anti-IDOR `ensureOwned`→403) — `generate` (de orçamento \*\*APPROVED\*\*; senão 400; 1 por orçamento senão 409), `sign` (paciente owner-scoped; só DRAFT senão 409; `$transaction` cria Signature + marca SIGNED+signedAt), `verify`. \*\*2 controllers:\* `ContractController` (EQUIPE, gated `budget:write/read`: POST /contracts, GET /contracts/:id, GET /contracts/:id/verify) + `MeContractController` (\*\*`@Patient`\*\*: GET /me/contracts, GET /me/contracts/:id, POST /me/contracts/:id/sign — captura IP via `@Ip()` + user-agent via `@Headers`).\*
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Contract +Signature +enum +back-relations Tenant/Budget/Patient), `apps/api/prisma/migrations/*_s18_contract/` (aditiva), `apps/api/src/integrations/esign/esign.service.ts` (novo), `apps/api/src/contract/{contract.service,contract.controller,me-contract.controller,contract.module}.ts` + `contract/dto/contract.dto.ts` (novos), `apps/api/src/app.module.ts` (+ContractModule), teste `apps/api/test/esign.service.spec.ts` (5 casos). Sem dep nova (`crypto` é nativo). \*Permissions: reusei `budget:*` (contrato fecha o orçamento) — sem novas permissions/re-seed.\*
+
+  \- \*Decisões:\* \*\*assinatura eletrônica simples\*\* (trilha IP+timestamp+hash) como mecanismo base — já é juridicamente válida e atende "evidência verificável + documento imutável (hash)"; o proxy p/ \*\*ICP qualificada\*\* (Clicksign/D4Sign/BirdID) é o gancho `method:ICP`/futuro no EsignService (como o stub da Evolution na S12, sem credenciais reais agora). Contrato gerado pela EQUIPE (budget:write), assinado pelo \*\*PACIENTE\*\* (@Patient owner-scoped). `body` é snapshot imutável; `signedHash` no ato prova que o assinado == atual. Reusei `budget:*` em vez de criar `contract:*` (evita re-seed/flush de cache).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (107 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (orçamento aprovado da S17): gerar contrato → verify \*\*não-assinado `valid:false`\*\* (integrityOk true, signaturesOk false) → gerar de novo → \*\*409\*\* → paciente vê (DRAFT) → \*\*assinar → SIGNED + 1 assinatura com IP\*\* → verify pós-assinatura \*\*`valid:true`\*\* → re-assinar → \*\*409\*\*. Imutabilidade/adulteração coberta por unit test (body alterado → integrityOk false).
+
+  \- \*Pendências p/ próxima:\* \*\*S18b\*\* — tela de assinatura: o paciente abre o contrato (`GET /me/contracts/:id` mostra `body`+status), lê e toca "Assinar" (`POST /me/contracts/:id/sign`) — no app do paciente (mobile) e/ou web; a equipe vê o contrato + verify na web. api-client/lib +métodos. Herdadas: as de sempre + integração ICP real quando houver credenciais.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

@@ -37,6 +37,7 @@ import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
 import { BudgetModule } from "./budget/budget.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { ContractModule } from "./contract/contract.module";
 import { MeModule } from "./me/me.module";
 import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
@@ -118,6 +119,7 @@ import { RedisModule } from "./redis/redis.module";
     PublicModule,
     CatalogModule,
     BudgetModule,
+    ContractModule,
     MeModule,
     WhatsAppModule,
     PushModule,

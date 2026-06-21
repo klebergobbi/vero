@@ -42,6 +42,8 @@ model Tenant {
   priceTable       PriceTable[]
   budgets          Budget[]
   budgetItems      BudgetItem[]
+  contracts        Contract[]
+  signatures       Signature[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -234,6 +236,7 @@ model Patient {
   deviceTokens DeviceToken[]
   notifications Notification[]
   budgets      Budget[]
+  contracts    Contract[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -502,10 +505,11 @@ model Budget {
   updatedAt  DateTime     @updatedAt
   deletedAt  DateTime?
 
-  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  patient Patient      @relation(fields: [patientId], references: [id])
-  plan    Plan?        @relation(fields: [planId], references: [id])
-  items   BudgetItem[]
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient      @relation(fields: [patientId], references: [id])
+  plan     Plan?        @relation(fields: [planId], references: [id])
+  items    BudgetItem[]
+  contract Contract?
 
   @@index([tenantId])
   @@index([patientId])
@@ -535,4 +539,58 @@ enum BudgetStatus {
   OPEN
   APPROVED
   REJECTED
+}
+
+/// Contrato gerado a partir de um orçamento APROVADO (§6/S18). `body` é o snapshot
+/// imutável (paciente + itens + total + termos); `contentHash` (sha256 do body) é a
+/// prova de integridade. Imutável após assinado. 1 contrato por orçamento.
+model Contract {
+  id          String         @id @default(cuid())
+  tenantId    String
+  budgetId    String         @unique
+  patientId   String
+  body        String
+  contentHash String
+  status      ContractStatus @default(DRAFT)
+  signedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  budget     Budget      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  patient    Patient     @relation(fields: [patientId], references: [id])
+  signatures Signature[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+/// Evidência de assinatura (§6 Consent/Signature; §7 trilha IP+timestamp+hash).
+/// `signedHash` = hash do body no instante da assinatura — tem que bater com o
+/// `contentHash` do contrato (se não bater, o documento foi adulterado).
+model Signature {
+  id         String   @id @default(cuid())
+  tenantId   String
+  contractId String
+  signerType String
+  signerName String
+  signedHash String
+  ip         String
+  userAgent  String?
+  /// CLICK (assinatura eletrônica simples) ou ICP (qualificada, quando integrado).
+  method     String   @default("CLICK")
+  signedAt   DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([contractId])
+}
+
+enum ContractStatus {
+  DRAFT
+  SIGNED
+  CANCELLED
 }

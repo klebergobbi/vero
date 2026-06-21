@@ -40,6 +40,8 @@ model Tenant {
   procedures       Procedure[]
   plans            Plan[]
   priceTable       PriceTable[]
+  budgets          Budget[]
+  budgetItems      BudgetItem[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -231,6 +233,7 @@ model Patient {
   appointments Appointment[]
   deviceTokens DeviceToken[]
   notifications Notification[]
+  budgets      Budget[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -436,8 +439,9 @@ model Procedure {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  prices PriceTable[]
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices      PriceTable[]
+  budgetItems BudgetItem[]
 
   @@index([tenantId])
 }
@@ -452,8 +456,9 @@ model Plan {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  prices PriceTable[]
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices  PriceTable[]
+  budgets Budget[]
 
   @@index([tenantId])
 }
@@ -478,4 +483,56 @@ model PriceTable {
   @@index([tenantId])
   @@index([procedureId])
   @@index([planId])
+}
+
+/// Orçamento de um paciente (§6/S17). `totalCents` é SEMPRE recalculado no
+/// backend a partir dos itens (nunca vem do front). `decidedAt` marca quando saiu
+/// de OPEN (base p/ relatório de conversão). Soft-delete.
+model Budget {
+  id         String       @id @default(cuid())
+  tenantId   String
+  patientId  String
+  /// convênio do orçamento (opcional; base p/ preço dos itens). null = particular.
+  planId     String?
+  status     BudgetStatus @default(OPEN)
+  totalCents Int          @default(0)
+  notes      String?
+  decidedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient      @relation(fields: [patientId], references: [id])
+  plan    Plan?        @relation(fields: [planId], references: [id])
+  items   BudgetItem[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+/// Item de orçamento. Guarda SNAPSHOT (description + unitPriceCents) do momento
+/// em que foi adicionado — o orçamento não muda se o catálogo mudar depois.
+model BudgetItem {
+  id             String   @id @default(cuid())
+  tenantId       String
+  budgetId       String
+  procedureId    String
+  description    String
+  quantity       Int      @default(1)
+  unitPriceCents Int
+  createdAt      DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  budget    Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  procedure Procedure @relation(fields: [procedureId], references: [id])
+
+  @@index([tenantId])
+  @@index([budgetId])
+}
+
+enum BudgetStatus {
+  OPEN
+  APPROVED
+  REJECTED
 }

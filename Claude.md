@@ -624,7 +624,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S17 — Orçamento (Budget)
+\#### \[ ] S17 — Orçamento (Budget)  ·  \*DIVIDIDA: \[x] S17a (backend: schema Budget/BudgetItem + módulo, total server-side, status) · \[ ] S17b (tela web)\*
 
 \*\*Depende de:\*\* S16
 
@@ -1545,6 +1545,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (97 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/catalogo` mostra \*\*Procedimentos (1)/Convênios (1)/Preços (1)\*\* com Limpeza/Particular/\*\*R$ 120,00\*\* (dados da S16a); criar "Clareamento" pelo form → aparece na lista ("Procedimentos (2)").\* \*Incidente recorrente:\* nova rota exigiu `rm -rf apps/web/.next` + restart (cache de dev quebra ao adicionar rota); rate limit de login 5/min também esbarrado.
 
   \- \*Pendências p/ próxima:\* \*\*S16 COMPLETA.\*\* Próxima no backlog: \*\*S17 — Orçamento (Budget)\*\* (montar/acompanhar orçamentos; `Budget`+`BudgetItem`+status; total calculado no backend; depende de S16). Herdadas: editar/remover catálogo pela UI, navegação comum web (menu /agenda↔/catalogo), gatear UI por permission, invalidar cache `rbac:perms` no PERMISSION_CHANGED, date-picker no app de booking, extrair `@vero/mobile-shared`, modelos Professional/Room, `docker-compose.yml`, `start`→`dist/src/main.js`, lockout.
+
+\- \*\*2026-06-21 · S17a — Orçamento: backend (Budget/BudgetItem + total server-side + status)\*\*  ·  \*S17 DIVIDIDA em S17a (esta) + S17b (tela web)\*
+
+  \- \*O que foi feito:\* núcleo de orçamentos. Schema: \*\*`Budget`\*\* (patientId, planId? = convênio, `status` enum `BudgetStatus` OPEN/APPROVED/REJECTED, `totalCents` Int, `decidedAt` p/ relatório de conversão, soft-delete) + \*\*`BudgetItem`\*\* (procedureId + `description`/`unitPriceCents` \*\*SNAPSHOT\*\* do momento + quantity) + migration aditiva. Módulo `budget`: `BudgetService` tenant-scoped (anti-IDOR `ensureOwned`→403) — \*\*`totalCents` SEMPRE recalculado no backend\*\* (`recomputeTotal` soma `quantity*unitPriceCents` dentro de `$transaction` ao add/remove item; o front NUNCA envia total); preço do item vem do \*\*catálogo\*\* (`PriceTable` do convênio do orçamento) ou explícito no DTO (senão 400); só orçamento \*\*OPEN\*\* aceita alteração (add/remove item em decidido → 409); `setStatus` OPEN→APPROVED/REJECTED grava `decidedAt` (re-decidir → 409). `BudgetController` (7 rotas: CRUD + items + status, gated `budget:read|write` — já existiam desde S16). \*Permissions `budget:*` já existiam → sem mudança em @vero/types/seed.\*
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Budget +BudgetItem +enum +back-relations Tenant/Patient/Plan/Procedure), `apps/api/prisma/migrations/*_s17_budget/` (aditiva), `apps/api/src/budget/{budget.module,budget.service,budget.controller}.ts` + `budget/dto/budget.dto.ts` (novos), `apps/api/src/app.module.ts` (+BudgetModule), teste `apps/api/test/budget.service.spec.ts` (5 casos). Sem dep nova.
+
+  \- \*Decisões:\* total \*\*recalculado em `$transaction`\*\* a cada mudança de item (não confia em soma do front, §4) — `aggregate` do Prisma não multiplica colunas, então somo `quantity*unitPriceCents` em JS dentro da transação. Item guarda \*\*snapshot\*\* (description+preço) → orçamento imutável se o catálogo mudar depois. Preço do item: catálogo (PriceTable do convênio) com fallback p/ valor explícito (avulso). Imutabilidade por estado: só OPEN edita. `decidedAt` é o gancho de "conversão registrada p/ relatório" (S43 fará o relatório).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (102 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local, catálogo da S16): criar orçamento p/ paciente demo (convênio Particular) → add Limpeza×2 → \*\*total 24000 (preço 12000 puxado do catálogo)\*\* → add item avulso 5000 → \*\*total 29000\*\* (recalculado) → aprovar → \*\*APPROVED + decidedAt set\*\* → add item em aprovado → \*\*409\*\*. Anti-IDOR/guards cobertos por unit test.
+
+  \- \*Pendências p/ próxima:\* \*\*S17b\*\* — tela web de orçamento (criar p/ paciente, adicionar itens do catálogo, ver total, mudar status); api-client +métodos; precisa de seletor de paciente (já há `listPatients`) + procedimentos (`listProcedures` da S16). Herdadas: as de sempre.
 
 
 

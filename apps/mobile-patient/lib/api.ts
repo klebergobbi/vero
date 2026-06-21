@@ -96,4 +96,36 @@ export const api = {
   /** Exclui a própria conta (anonimiza + bloqueia login — §5 loja). */
   deleteAccount: (accessToken: string): Promise<{ ok: boolean }> =>
     request<{ ok: boolean }>("/me", { method: "DELETE", accessToken }),
+
+  /** Registra/atualiza o device de push deste paciente (§S13c). */
+  registerDevice: (
+    accessToken: string,
+    token: string,
+    platform: "IOS" | "ANDROID",
+  ): Promise<{ id: string; optedOut: boolean }> =>
+    request("/me/devices", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({ token, platform }),
+    }),
+
+  /** Liga/desliga o recebimento de push deste device. */
+  optOutDevice: (
+    accessToken: string,
+    token: string,
+    optedOut: boolean,
+  ): Promise<{ ok: boolean; optedOut: boolean }> =>
+    request("/me/devices/opt-out", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({ token, optedOut }),
+    }),
+
+  /** Remove o device (logout). */
+  unregisterDevice: (accessToken: string, token: string): Promise<void> =>
+    request("/me/devices/unregister", {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify({ token }),
+    }),
 };

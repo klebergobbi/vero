@@ -2,8 +2,10 @@ import { Link } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -11,6 +13,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiError, type Appointment } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import {
+  disablePush,
+  enablePush,
+  hasPushToken,
+  setPushOptOut,
+} from "../lib/push";
 
 const STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "Agendado",
@@ -53,6 +61,56 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [day] = useState(dayWindow);
+  const [pushOn, setPushOn] = useState(false);
+  const [optedOut, setOptedOut] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    void hasPushToken().then(setPushOn);
+  }, []);
+
+  // Permissão pedida SÓ a partir desta ação do usuário, com contexto (§5 loja).
+  const handleEnablePush = useCallback(async () => {
+    if (!accessToken) return;
+    setPushBusy(true);
+    try {
+      const result = await enablePush(accessToken);
+      if (result === "registered") {
+        setPushOn(true);
+        setOptedOut(false);
+      } else if (result === "denied") {
+        Alert.alert(
+          "Permissão necessária",
+          "Ative as notificações nas configurações do sistema para receber lembretes.",
+        );
+      } else {
+        Alert.alert("Indisponível", "Push só funciona em um aparelho físico.");
+      }
+    } catch {
+      Alert.alert("Erro", "Não foi possível ativar os lembretes.");
+    } finally {
+      setPushBusy(false);
+    }
+  }, [accessToken]);
+
+  const handleToggleOptOut = useCallback(
+    async (receive: boolean) => {
+      if (!accessToken) return;
+      setOptedOut(!receive);
+      try {
+        await setPushOptOut(accessToken, !receive);
+      } catch {
+        setOptedOut(receive); // reverte em falha
+        Alert.alert("Erro", "Não foi possível atualizar a preferência.");
+      }
+    },
+    [accessToken],
+  );
+
+  const handleSignOut = useCallback(async () => {
+    await disablePush(accessToken);
+    await signOut();
+  }, [accessToken, signOut]);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -89,9 +147,40 @@ export default function Home() {
           <Text style={styles.title}>Agenda do dia</Text>
           <Text style={styles.subtitle}>{day.label}</Text>
         </View>
-        <TouchableOpacity onPress={signOut} accessibilityRole="button">
+        <TouchableOpacity onPress={handleSignOut} accessibilityRole="button">
           <Text style={styles.signOut}>Sair</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.pushCard}>
+        <View style={styles.pushText}>
+          <Text style={styles.pushTitle}>Lembretes</Text>
+          <Text style={styles.pushSubtitle}>
+            {pushOn
+              ? "Receba avisos da sua agenda."
+              : "Ative para ser avisado da sua agenda."}
+          </Text>
+        </View>
+        {pushOn ? (
+          <Switch
+            value={!optedOut}
+            onValueChange={handleToggleOptOut}
+            trackColor={{ true: "#2dd4bf", false: "#2a3a4d" }}
+          />
+        ) : (
+          <TouchableOpacity
+            style={styles.pushBtn}
+            onPress={handleEnablePush}
+            disabled={pushBusy}
+            accessibilityRole="button"
+          >
+            {pushBusy ? (
+              <ActivityIndicator color="#0d1b2a" />
+            ) : (
+              <Text style={styles.pushBtnText}>Ativar</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {loading ? (
@@ -151,6 +240,29 @@ const styles = StyleSheet.create({
   title: { color: "#ffffff", fontSize: 22, fontWeight: "700" },
   subtitle: { color: "#9fb3c8", fontSize: 13, textTransform: "capitalize" },
   signOut: { color: "#2dd4bf", fontSize: 15, fontWeight: "600" },
+  pushCard: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    padding: 16,
+    backgroundColor: "#14283d",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  pushText: { flex: 1 },
+  pushTitle: { color: "#ffffff", fontSize: 15, fontWeight: "600" },
+  pushSubtitle: { color: "#9fb3c8", fontSize: 13, marginTop: 2 },
+  pushBtn: {
+    backgroundColor: "#2dd4bf",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 72,
+    alignItems: "center",
+  },
+  pushBtnText: { color: "#0d1b2a", fontSize: 14, fontWeight: "700" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   error: { color: "#ff8a80", fontSize: 15 },
   retry: { color: "#2dd4bf", fontSize: 15, fontWeight: "600" },

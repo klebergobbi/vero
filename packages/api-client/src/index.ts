@@ -84,6 +84,18 @@ export interface PriceItem {
   plan: { name: string };
 }
 
+/** Odontograma — condição por dente/face (§S27). */
+export interface ToothCondition {
+  toothNumber: number;
+  face: string;
+  condition: string;
+}
+
+export interface OdontogramData {
+  id: string;
+  conditions: ToothCondition[];
+}
+
 /** Orçamento — resumo para a listagem (§S17). */
 export interface BudgetSummary {
   id: string;
@@ -409,6 +421,23 @@ export function createApiClient(opts: ApiClientOptions) {
 
     getCharge: (id: string): Promise<ChargeDetail> =>
       request<ChargeDetail>(baseUrl, `/charges/${id}`, { accessToken }),
+
+    // --- Odontograma (§S27, gated record:read|write) ---
+
+    getOdontogram: (patientId: string): Promise<OdontogramData> =>
+      request<OdontogramData>(baseUrl, `/odontogram/${patientId}`, {
+        accessToken,
+      }),
+
+    setToothCondition: (
+      patientId: string,
+      input: { toothNumber: number; face: string; condition: string },
+    ): Promise<OdontogramData> =>
+      request<OdontogramData>(baseUrl, `/odontogram/${patientId}/conditions`, {
+        method: "PUT",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

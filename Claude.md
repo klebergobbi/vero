@@ -762,7 +762,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S27 — Odontograma  ·  \*DIVIDIDA: \[x] S27a (backend: schema + serviço + @vero/types faces/condições) · \[ ] S27b (componente SVG interativo no web)\*
+\#### \[x] S27 — Odontograma  ·  \*DIVIDIDA: \[x] S27a (backend: schema + serviço + @vero/types faces/condições) · \[x] S27b (componente SVG interativo no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1713,6 +1713,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (146 pass, 2 skip; +3)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\*: marcar 11/OCCLUSAL=CARIES e 21/WHOLE=IMPLANT → \*\*GET persiste ambas (render ao reabrir)\*\*; `HEALTHY` no 11 → \*\*removido\*\* (só 21 resta); dente FDI 99 → \*\*400\*\*; \*\*SENSITIVE_READ auditado\*\*; token de paciente → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S27b\*\* — componente SVG interativo no web: render dos 32 dentes (FDI), clicar dente/face → escolher condição → `PUT /odontogram/:patientId/conditions`; cores de @vero/types; reabrir mostra o estado salvo. api-client +`getOdontogram`/`setToothCondition`. Herdadas: tela web do prontuário (S26 só API), as de sempre.
+
+\- \*\*2026-06-22 · S27b — Odontograma: componente SVG interativo no web (FECHA a S27)\*\*
+
+  \- \*O que foi feito:\* mapa dental interativo. \*\*api-client:\* +`getOdontogram(patientId)`/`setToothCondition(patientId, {tooth,face,condition})` + tipos `ToothCondition`/`OdontogramData`.\* Página \*\*`/odontograma/[patientId]`\*\* (Server Component, BFF — busca o odontograma; `notFound` se falhar). `actions.ts` (Server Action `setToothConditionAction`). \*\*`odontogram-chart.tsx`\*\* (client SVG): paleta de condições (botões coloridos de `TOOTH_CONDITIONS`), 2 arcadas (superior 18–28, inferior 48–38) com os 32 dentes FDI; cada dente = 5 \*\*polígonos de face\*\* (V/L/M/D/Occlusal) clicáveis + o \*\*número do dente\*\* clicável (aplica `WHOLE`). Clicar pinta com a cor da condição ativa e faz `PUT` (otimista via `useTransition`); `HEALTHY` limpa. Estado salvo renderiza ao reabrir.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (2 métodos + 2 tipos), `apps/web/app/odontograma/[patientId]/{page.tsx,actions.ts,odontogram-chart.tsx}` (novos). Sem backend novo (consome S27a), sem migration.
+
+  \- \*Decisões:\* SVG \*\*5 faces por dente\*\* (polígonos: 4 trapézios + centro occlusal) — clicar a face usa a face da região; o número do dente aplica `WHOLE` (ausente/implante/coroa). Cores/labels/lista de dentes vêm de `@vero/types` (mesma fonte do backend). `WHOLE` pinta o fundo do dente; faces sem condição ficam transparentes (deixam o fundo aparecer). Sem anatomia M/D espelhada por quadrante (geometria fixa — anotado). Página standalone `/odontograma/[patientId]` (a tela de prontuário web — S26 — ainda é só API).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (146 pass)/`format:check`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/odontograma/demo-patient` renderiza \*\*160 polígonos (32 dentes × 5 faces)\*\* + paleta; selecionar "Implante" + clicar o número do dente 16 → \*\*PUT persiste\*\*; \*\*recarregar mostra 16 e 21 em roxo (IMPLANT/WHOLE)\*\* — render ao reabrir confirmado (screenshot); no banco `ToothCondition`: 16/WHOLE/IMPLANT + 21/WHOLE/IMPLANT.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S27 COMPLETA.\*\* Próxima no backlog: \*\*S28 — Anamnese digital\*\* (`Anamnesis`/`AnamnesisTemplate`; link de preenchimento + assinatura remota reusando o esign da S18; tela no app do paciente; template por procedimento; link com token de uso único/expiração). Depende de S26+S18. Herdadas: tela web do prontuário (só API), anatomia M/D espelhada no odontograma, upload real ao Spaces, integrações reais, navegação comum web, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

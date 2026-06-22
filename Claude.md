@@ -734,7 +734,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S25 — SPC consulta + inclusão
+\#### \[x] S25 — SPC consulta + inclusão
 
 \*\*Depende de:\*\* S5, S19
 
@@ -1677,6 +1677,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (134 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only — pdfkit sem vulns) \*\*verdes\*\*. \*\*AO VIVO\*\*: `POST /receipts` → `{url assinada, expiresAt 5min}`; baixar a URL \*\*sem auth\*\* → \*\*200 `application/pdf`, começa com `%PDF-` (1602 bytes)\*\*; token adulterado → \*\*404\*\*; token expirado/receiptId trocado → 404 (unit); token de paciente em POST → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S24 COMPLETA.\*\* \*\*FECHA a FASE 2 financeira/comercial (S16–S24).\*\* Próxima no backlog: \*\*S25 — SPC consulta + inclusão\*\* (`integrations/spc/spc.service.ts` anti-SSRF + fila `spc-query`; +`CreditCheck`; consultar score (sandbox) antes de parcelar; inclusão de inadimplente registrada e auditada; consentimento/base legal). Depende de S5+S19. Herdadas: upload real ao DO Spaces, auto-emitir NFS-e/recibo no reconcile, CRUD de régua na web, integrações reais, navegação comum web, as de sempre.
+
+\- \*\*2026-06-22 · S25 — SPC/Serasa: consulta de score + inclusão de inadimplente\*\*
+
+  \- \*O que foi feito:\* bureau de crédito. \*\*Auditoria:\* +2 ações `CREDIT_CHECK`/`CREDIT_INCLUSION` (fonte única em @vero/types AUDIT_ACTIONS + enum `AuditAction` espelhado no schema, migration `ALTER TYPE ADD VALUE`).\* Schema: \*\*`CreditCheck`\*\* (patientId, `kind` enum QUERY/INCLUSION, `status` PENDING/DONE/FAILED, `consent` Boolean = base legal, `score?` (consulta), `amountCents?` (inclusão), externalId/error) + migration. \*\*`SpcService`\*\* (integrations/spc, proxy §7 espelha Asaas): `query(cpf)`→score, `include({cpf,amount,desc})`→protocolo; \*\*anti-SSRF\*\* (URL só da base), timeout 12s, \*\*fail-closed\*\* sem config. `CreditService.create`: \*\*exige consentimento\*\* (senão 400), valida paciente owned (anti-IDOR 403) + com CPF, INCLUSION exige valor; cria CreditCheck PENDING, \*\*AUDITA\*\* (CREDIT_CHECK/CREDIT_INCLUSION, sem PII — só ids), enfileira (`spc-query`). Fila \*\*`spc-query`\*\* (`SpcQueryProcessor`): por kind chama query/include → DONE+score/externalId; idempotente (DONE→no-op); falha → retry/backoff → DLQ + FAILED com motivo. `CreditController` (POST /credit-checks billing:write, GET /:id billing:read). Envs `SPC_*` opcionais.
+
+  \- \*Arquivos tocados:\* `packages/types/src/rbac.ts` (+2 ações), `apps/api/prisma/schema.prisma` (+CreditCheck +2 enums +AuditAction +2 valores +back-relations), `apps/api/prisma/migrations/*_s25_credit_check/` (aditiva), `apps/api/src/config/env.validation.ts` + `.env.example` (+SPC_*), `apps/api/src/integrations/spc/spc.service.ts` (novo), `apps/api/src/credit/{credit.service,credit.controller,credit.module,spc-query}.ts` + `credit/dto/credit.dto.ts` (novos), `apps/api/src/app.module.ts` (+CreditModule), teste `apps/api/test/credit.service.spec.ts` (5 casos). Sem dep nova. \*Permissions `billing:*` reusadas; sem re-seed (audit enum não precisa de seed).\*
+
+  \- \*Decisões:\* +2 ações de auditoria dedicadas (não SENSITIVE_READ genérico) p/ rastrear crédito (consulta E inclusão) — mesmo padrão do ACCOUNT_DELETED (S10a). \*\*Consentimento obrigatório\*\* (LGPD/base legal) validado no service. CPF do paciente vai no corpo (anti-SSRF). Processamento \*\*assíncrono\*\* (fila spc-query) — bureau instável; o caller cria e depois consulta o resultado (GET). `actorId` da auditoria vem do `@CurrentPrincipal` (staff.userId). Stub local valida (sem credenciais reais).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (139 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub SPC 9093): consultar SEM consentimento → \*\*400\*\*; consulta → worker → \*\*DONE score=742 + externalId\*\*; inclusão (R$500) → \*\*DONE + externalId\*\*; \*\*AuditLog: CREDIT_CHECK=1, CREDIT_INCLUSION=1\*\* (tudo auditado); token de paciente → \*\*403\*\*. Anti-IDOR/guards por unit test.
+
+  \- \*Pendências p/ próxima:\* \*\*S25 COMPLETA.\*\* Próxima no backlog: \*\*S26 — Prontuário (MedicalRecord) + anexos\*\* (início da FASE 3 clínica: `MedicalRecord`/`RecordEntry`/`Attachment`; upload p/ Spaces URL assinada; cifra em repouso; acesso gera `SENSITIVE_READ` no AuditLog; anti-IDOR). Depende de S5. Herdadas: integrações reais (Asaas/Evolution/NFS-e/SPC), upload real ao Spaces, CRUD de régua na web, navegação comum web, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

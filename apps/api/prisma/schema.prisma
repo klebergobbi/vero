@@ -52,6 +52,7 @@ model Tenant {
   collectionEvents CollectionEvent[]
   invoices         Invoice[]
   receipts         Receipt[]
+  creditChecks     CreditCheck[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -213,6 +214,8 @@ enum AuditAction {
   SENSITIVE_READ
   PERMISSION_CHANGED
   ACCOUNT_DELETED
+  CREDIT_CHECK
+  CREDIT_INCLUSION
 }
 
 /// Paciente (§6: Patient — origem do lead, indicado_por). Tenant-scoped, soft-delete preparado.
@@ -248,6 +251,7 @@ model Patient {
   budgets      Budget[]
   contracts    Contract[]
   charges      Charge[]
+  creditChecks CreditCheck[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -796,4 +800,42 @@ model Receipt {
   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+/// Consulta/inclusão de crédito (SPC/Serasa — §6/S25). `kind` separa CONSULTA
+/// (score) de INCLUSÃO (inadimplente). `consent` registra a base legal no momento.
+/// Toda operação é auditada (AuditLog CREDIT_CHECK/CREDIT_INCLUSION). Segredos do
+/// bureau só no backend (§7); o processamento é assíncrono (fila `spc-query`).
+model CreditCheck {
+  id          String            @id @default(cuid())
+  tenantId    String
+  patientId   String
+  kind        CreditCheckKind
+  status      CreditCheckStatus @default(PENDING)
+  consent     Boolean           @default(false)
+  /// score do bureau (consulta).
+  score       Int?
+  /// valor da dívida em centavos (inclusão).
+  amountCents Int?
+  externalId  String?
+  error       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+enum CreditCheckKind {
+  QUERY
+  INCLUSION
+}
+
+enum CreditCheckStatus {
+  PENDING
+  DONE
+  FAILED
 }

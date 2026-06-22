@@ -52,6 +52,12 @@ export const envSchema = z.object({
     .url("NFSE_API_URL deve ser uma URL válida")
     .optional(),
   NFSE_API_KEY: z.string().min(1).optional(),
+
+  // Bureau de crédito SPC/Serasa (§7/S25) — segredos SÓ no backend. Opcionais: a
+  // API sobe sem elas; consulta/inclusão falha fechado até configurar. SPC_API_URL
+  // nunca recebe input do usuário (anti-SSRF). Use sandbox em homologação.
+  SPC_API_URL: z.string().url("SPC_API_URL deve ser uma URL válida").optional(),
+  SPC_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

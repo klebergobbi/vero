@@ -137,6 +137,8 @@ export const AUDIT_ACTIONS = [
   "SENSITIVE_READ",
   "PERMISSION_CHANGED",
   "ACCOUNT_DELETED",
+  "CREDIT_CHECK",
+  "CREDIT_INCLUSION",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -40,6 +40,7 @@ import { BudgetModule } from "./budget/budget.module";
 import { CollectionModule } from "./collection/collection.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
+import { CreditModule } from "./credit/credit.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { MeModule } from "./me/me.module";
 import { OrgModule } from "./org/org.module";
@@ -128,6 +129,7 @@ import { RedisModule } from "./redis/redis.module";
     CollectionModule,
     InvoiceModule,
     ReceiptModule,
+    CreditModule,
     MeModule,
     WhatsAppModule,
     PushModule,

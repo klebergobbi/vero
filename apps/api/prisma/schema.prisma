@@ -58,6 +58,8 @@ model Tenant {
   attachments      Attachment[]
   odontograms      Odontogram[]
   toothConditions  ToothCondition[]
+  anamnesisTemplates AnamnesisTemplate[]
+  anamneses        Anamnesis[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -259,6 +261,7 @@ model Patient {
   charges      Charge[]
   creditChecks CreditCheck[]
   medicalRecord MedicalRecord?
+  anamneses    Anamnesis[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -861,6 +864,7 @@ model MedicalRecord {
   entries     RecordEntry[]
   attachments Attachment[]
   odontogram  Odontogram?
+  anamneses   Anamnesis[]
 
   @@index([tenantId])
 }
@@ -935,4 +939,59 @@ model ToothCondition {
   @@unique([odontogramId, toothNumber, face])
   @@index([tenantId])
   @@index([odontogramId])
+}
+
+/// Modelo de anamnese reutilizável (§6/S28). `questions` = Json [{id,label}].
+/// `procedureKey` opcional → template por procedimento (Orto, Implanto...).
+model AnamnesisTemplate {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  procedureKey String?
+  questions    Json
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  anamneses Anamnesis[]
+
+  @@index([tenantId])
+}
+
+/// Instância de anamnese enviada a um paciente (§6/S28). Preenchida e assinada
+/// REMOTAMENTE por link de USO ÚNICO (`tokenHash` + `tokenExpiresAt`). Respostas
+/// CIFRADAS em repouso (`answersEnc`, dado de saúde). Evidência de assinatura
+/// (reusa o esign da S18): `contentHash` (SHA-256, tamper-evident) + IP + timestamp.
+/// Ao assinar, vincula-se ao prontuário (`recordId`).
+model Anamnesis {
+  id             String          @id @default(cuid())
+  tenantId       String
+  patientId      String
+  templateId     String
+  recordId       String?
+  status         AnamnesisStatus @default(PENDING)
+  answersEnc     String?
+  contentHash    String?
+  signerIp       String?
+  signedAt       DateTime?
+  /// link de uso único: SHA-256 do token (o token cru só vai no link) + expiração.
+  tokenHash      String          @unique
+  tokenExpiresAt DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  template AnamnesisTemplate @relation(fields: [templateId], references: [id])
+  record   MedicalRecord?    @relation(fields: [recordId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+enum AnamnesisStatus {
+  PENDING
+  SIGNED
+  CANCELLED
 }

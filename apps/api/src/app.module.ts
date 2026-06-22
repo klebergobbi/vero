@@ -41,6 +41,7 @@ import { CollectionModule } from "./collection/collection.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
+import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { MeModule } from "./me/me.module";
 import { OdontogramModule } from "./odontogram/odontogram.module";
@@ -134,6 +135,7 @@ import { RedisModule } from "./redis/redis.module";
     CreditModule,
     RecordModule,
     OdontogramModule,
+    AnamnesisModule,
     MeModule,
     WhatsAppModule,
     PushModule,

@@ -774,7 +774,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S28 — Anamnese digital
+\#### \[ ] S28 — Anamnese digital  ·  \*DIVIDIDA: \[x] S28a (backend: schema + serviço + link público preencher/assinar + ver) · \[ ] S28b (tela pública de preenchimento no web + integração no app)\*
 
 \*\*Depende de:\*\* S26, S18
 
@@ -1726,33 +1726,17 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
   \- \*Pendências p/ próxima:\* \*\*S27 COMPLETA.\*\* Próxima no backlog: \*\*S28 — Anamnese digital\*\* (`Anamnesis`/`AnamnesisTemplate`; link de preenchimento + assinatura remota reusando o esign da S18; tela no app do paciente; template por procedimento; link com token de uso único/expiração). Depende de S26+S18. Herdadas: tela web do prontuário (só API), anatomia M/D espelhada no odontograma, upload real ao Spaces, integrações reais, navegação comum web, as de sempre.
 
+\- \*\*2026-06-22 · S28a — Anamnese digital: backend (schema + serviço + link público preencher/assinar + ver)\*\*  ·  \*S28 DIVIDIDA em S28a (esta) + S28b (tela pública de preenchimento + app)\*
 
+  \- \*O que foi feito:\* base da anamnese remota. Modelos `AnamnesisTemplate` (questions Json `[{id,label}]`, `procedureKey?` → template por procedimento, active) e `Anamnesis` (instância enviada ao paciente; `status` PENDING/SIGNED/CANCELLED; respostas \*\*CIFRADAS em repouso\*\* `answersEnc`; evidência `contentHash`+`signerIp`+`signedAt`; \*\*link de USO ÚNICO\*\* `tokenHash` único + `tokenExpiresAt`; `recordId?` → vínculo ao prontuário). `AnamnesisService`: `createTemplate`/`listTemplates` (equipe), `send` (cria PENDING + token opaco `randomBytes(24)`, devolve o link; \*\*anti-IDOR\*\* via `TenantScope.ensureOwned` no paciente + template do mesmo tenant), `getFillForm`/`submitFill` (\*\*públicos por token\*\* — resolvem a anamnese SÓ pelo `tokenHash`, nunca por id do cliente; `submitFill` serializa→cifra→`updateMany where status=PENDING` para uso único/anti-corrida + grava evidência reusando `EsignService.contentHash` da S18; cria/garante o `MedicalRecord`), `view` (equipe — decifra + recomputa hash p/ `integrityOk` + \*\*audita SENSITIVE_READ\*\*). Controllers: `AnamnesisController` (equipe, `record:read|write`; `templates` declarado ANTES de `:id` p/ evitar colisão de rota) + `AnamnesisFillController` (`@Public`, base `anamnesis/fill`).
 
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`AnamnesisTemplate` +`Anamnesis` +enum `AnamnesisStatus` +back-relations Tenant/Patient/MedicalRecord) + migration `s28_anamnesis` (aditiva), `apps/api/src/anamnesis/{anamnesis.service,anamnesis.controller,anamnesis.module}.ts` + `dto/anamnesis.dto.ts` (novos), `apps/api/src/app.module.ts` (+AnamnesisModule), teste `apps/api/test/anamnesis.service.spec.ts` (5 casos). Sem dep nova (reusa Crypto/Esign/Audit existentes).
 
+  \- \*Decisões:\* `CryptoService` (S26) + `EsignService` (S18) \*\*providos no AnamnesisModule\*\* (stateless) em vez de exportar/importar os módulos donos — evita acoplamento de módulos, mesmo padrão de reuso barato. Evidência de assinatura \*\*inline na Anamnesis\*\* (`contentHash`/`signerIp`/`signedAt`), não o modelo `Signature` (acoplado a Contract) — anamnese é fluxo próprio. Uso único enforçado em DUAS camadas: `findFillable` recusa status≠PENDING (→404 no reuso) e `updateMany where status=PENDING` (→400 só em corrida). Permissões reusam `record:read|write` (anamnese é clínico/prontuário). TTL do link 7 dias.
 
+  \- \*Verificação:\* `pnpm lint`/`test` (151 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo pré-existente, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real na DB de dev 5455): login equipe → criar template → \*\*enviar\*\* (token+link) → \*\*GET form público sem JWT\*\* (PENDING + perguntas + nome do paciente) → \*\*POST assinar\*\* (SIGNED + contentHash + signedAt) → \*\*uso único\*\* (re-POST e re-GET → 404) → \*\*staff view\*\* decifra respostas + evidência (`integrityOk:true`, signerIp). No banco: `status=SIGNED`, `recordId` vinculado, \*\*`answersEnc` ilegível e o texto "penicilina" NÃO aparece (cifrado em repouso)\*\*, AuditLog `SENSITIVE_READ`/`Anamnesis`/`demo-patient`. \*\*Anti-IDOR\*\*: enviar p/ paciente de outro tenant → \*\*403\*\*.
 
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
-
-
-
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
-
-
-
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
-
-
-
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
-
-
-
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
-
-
-
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
+  \- \*Pendências p/ próxima:\* \*\*S28b\*\* — tela PÚBLICA de preenchimento no web (`/anamnese/[token]`: GET form → preencher → POST assinar; sem login, como a página de exclusão de conta) + api-client `getAnamnesisForm`/`submitAnamnesis` + (opcional) listagem no app do paciente das anamneses pendentes. \*Nota:\* o \*\*disparo automático do link por WhatsApp\*\* (régua/Evolution) pode entrar junto da S22/S33; a S28 só gera o link. Herdadas: tela web do prontuário (só API), anatomia M/D no odontograma, upload real ao Spaces, integrações reais, navegação comum web, `MessageLog`, as de sempre.
 
 
 

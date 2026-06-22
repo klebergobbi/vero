@@ -60,6 +60,7 @@ model Tenant {
   toothConditions  ToothCondition[]
   anamnesisTemplates AnamnesisTemplate[]
   anamneses        Anamnesis[]
+  specialtyForms   SpecialtyForm[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -122,6 +123,7 @@ model User {
   deviceTokens   DeviceToken[]
   notifications  Notification[]
   recordEntries  RecordEntry[]  @relation("RecordAuthor")
+  specialtyForms SpecialtyForm[] @relation("SpecialtyAuthor")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -865,6 +867,7 @@ model MedicalRecord {
   attachments Attachment[]
   odontogram  Odontogram?
   anamneses   Anamnesis[]
+  specialtyForms SpecialtyForm[]
 
   @@index([tenantId])
 }
@@ -994,4 +997,27 @@ enum AnamnesisStatus {
   PENDING
   SIGNED
   CANCELLED
+}
+
+/// Ficha clínica por especialidade (§6/S29). `specialty` validado contra
+/// SPECIALTY_TYPES de @vero/types; `valuesEnc` = respostas {campoId:valor} CIFRADAS
+/// em repouso (dado de saúde, AES-256-GCM). VERSIONADO: cada salvamento cria uma
+/// nova linha (version = anterior+1); a versão corrente é a de maior `version`.
+model SpecialtyForm {
+  id        String   @id @default(cuid())
+  tenantId  String
+  recordId  String
+  specialty String
+  version   Int
+  valuesEnc String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  record MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  author User          @relation("SpecialtyAuthor", fields: [authorId], references: [id])
+
+  @@unique([recordId, specialty, version])
+  @@index([tenantId])
+  @@index([recordId, specialty])
 }

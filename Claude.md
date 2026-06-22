@@ -792,7 +792,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S29 — Fichas por especialidade
+\#### \[ ] S29 — Fichas por especialidade  ·  \*DIVIDIDA: \[x] S29a (backend: @vero/types defs + schema versionado/cifrado + serviço) · \[ ] S29b (render dinâmico no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1749,6 +1749,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* gerar token via API → abrir `/anamnese/[token]` \*\*sem login\*\* renderiza "Anamnese" + 2 inputs → preencher + "Assinar e enviar" → \*\*"Anamnese enviada e assinada"\*\* → reabrir o MESMO link → \*\*aviso "inválido/expirou/já preenchido"\*\* (uso único, screenshot). No banco: `status=SIGNED`, `recordId` vinculado, `signerIp=::1`, \*\*`answersEnc` cifrado (texto "resposta" não vaza)\*\*.\*
 
   \- \*Pendências p/ próxima:\* \*\*S28 COMPLETA.\*\* Próxima no backlog: \*\*S29 — Fichas por especialidade\*\* (`SpecialtyForm` com campos por tipo: Orto/Implanto/Endo/HOF/Alinhadores/Estética; `specialty/service.ts`; render dinâmico no web; campos persistidos e versionados). Depende de S26. Herdadas: listagem de anamneses pendentes no app, disparo do link por WhatsApp (régua), tela web do prontuário (só API), anatomia M/D no odontograma, upload real ao Spaces, integrações reais, navegação comum web, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-22 · S29a — Fichas por especialidade: backend (defs + schema versionado/cifrado + serviço)\*\*  ·  \*INÍCIO clínico avançado; S29 DIVIDIDA em S29a (esta) + S29b (render dinâmico web)\*
+
+  \- \*O que foi feito:\* base das fichas por especialidade. \*\*`@vero/types/specialty`\*\* (FONTE ÚNICA reusada no render do web S29b): `SPECIALTY_TYPES` (ORTHO/IMPLANT/ENDO/HOF/ALIGNER/AESTHETIC), `SPECIALTY_FORMS` (cada especialidade com seus `fields` `{id,label,type:text|textarea|number|select,options?}`), helpers `getSpecialtyDefinition`/`isValidSpecialty` + Zod. Schema: \*\*`SpecialtyForm`\*\* (`recordId`+`specialty`+`version`, `valuesEnc` = respostas `{campoId:valor}` CIFRADAS em repouso, `authorId`=profissional, `@@unique([recordId,specialty,version])`) + back-relations Tenant/MedicalRecord/User(`SpecialtyAuthor`) + migration aditiva. `SpecialtyService` tenant-scoped (anti-IDOR `ensureOwned` no paciente; cria prontuário sob demanda): `save` (\*\*VERSIONADO\*\* — version = maior anterior+1, cada save é nova linha; \*\*filtra campos fora da definição\*\*; cifra via CryptoService S26), `view` (versão corrente = maior version + histórico de versões; decifra; \*\*AUDITA SENSITIVE_READ\*\*). `SpecialtyController`: `GET /specialty/:patientId/:specialty` (record:read), `PUT /specialty/:patientId/:specialty` (record:write).
+
+  \- \*Arquivos tocados:\* `packages/types/src/{specialty.ts (novo),index.ts}`, `apps/api/prisma/schema.prisma` (+`SpecialtyForm` +back-relations) + migration `s29_specialty_form` (aditiva), `apps/api/src/specialty/{specialty.service,specialty.controller,specialty.module}.ts` + `dto/specialty.dto.ts` (novos), `apps/api/src/app.module.ts` (+SpecialtyModule), teste `apps/api/test/specialty.service.spec.ts` (4 casos). Sem dep nova (reusa Crypto/Audit).
+
+  \- \*Decisões:\* campos por especialidade como \*\*definição em @vero/types\*\* (não modelo no banco) — mesma fonte alimenta a validação do backend e o render dinâmico do web (sem duplicar). \*\*Versionado\*\* por linha append-only (`version` incremental, unique por `recordId+specialty+version`) — histórico clínico preservado; corrente = maior version. Valores \*\*cifrados em repouso\*\* (CryptoService S26, dado de saúde) + SENSITIVE_READ na leitura. `save` \*\*filtra\*\* chaves fora da definição (não persiste lixo/injeção). Permissões reusam `record:read|write` (clínico). \*Limitação:\* qualquer staff com `record:write` preenche qualquer especialidade (não há `Professional.specialties` com enforcement ainda — §6, futuro). Corrida de versão concorrente → P2002 no unique (raro; aceito).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (155 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB dev 5455): salvar ORTHO v1 (com campo estranho "hacker") → \*\*version 1\*\*; salvar v2 → \*\*version 2 (versionado)\*\*; `GET` → corrente v2 (Classe III/overjet 6) + histórico [v2,v1]; \*\*"hacker" filtrado\*\* (não persistido); especialidade inválida → \*\*400\*\*; anti-IDOR outro tenant → \*\*403\*\*. No banco: 2 linhas ORTHO, \*\*`valuesEnc` cifrado (texto "Classe" não vaza)\*\*, AuditLog `SENSITIVE_READ`/`SpecialtyForm`.
+
+  \- \*Pendências p/ próxima:\* \*\*S29b\*\* — render dinâmico no web: página `/ficha/[patientId]` (ou aba) que lista as especialidades de `@vero/types`, escolhe uma, renderiza os `fields` (text/textarea/number/select) pré-preenchidos da versão corrente, salva via `PUT` (nova versão) + mostra histórico. api-client `getSpecialtyForm`/`saveSpecialtyForm` + tipos. Herdadas: `Professional.specialties` com enforcement, tela web do prontuário (só API), as de sempre.
 
 
 

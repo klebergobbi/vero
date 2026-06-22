@@ -3,3 +3,4 @@ export * from "./rbac";
 export * from "./patient";
 export * from "./appointment";
 export * from "./odontogram";
+export * from "./specialty";

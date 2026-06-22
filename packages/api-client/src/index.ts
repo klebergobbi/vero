@@ -96,6 +96,19 @@ export interface OdontogramData {
   conditions: ToothCondition[];
 }
 
+/** Ficha por especialidade (§S29) — versão corrente + histórico. */
+export interface SpecialtyVersionMeta {
+  version: number;
+  authorId: string;
+  createdAt: string;
+}
+export interface SpecialtyFormData {
+  specialty: string;
+  version: number;
+  values: Record<string, unknown>;
+  history: SpecialtyVersionMeta[];
+}
+
 /** Anamnese digital (§S28) — formulário público resolvido por token de uso único. */
 export interface AnamnesisQuestion {
   id: string;
@@ -455,6 +468,29 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify(input),
         accessToken,
       }),
+
+    // --- Fichas por especialidade (§S29, gated record:read|write) ---
+
+    getSpecialtyForm: (
+      patientId: string,
+      specialty: string,
+    ): Promise<SpecialtyFormData> =>
+      request<SpecialtyFormData>(
+        baseUrl,
+        `/specialty/${encodeURIComponent(patientId)}/${encodeURIComponent(specialty)}`,
+        { accessToken },
+      ),
+
+    saveSpecialtyForm: (
+      patientId: string,
+      specialty: string,
+      values: Record<string, unknown>,
+    ): Promise<{ specialty: string; version: number }> =>
+      request<{ specialty: string; version: number }>(
+        baseUrl,
+        `/specialty/${encodeURIComponent(patientId)}/${encodeURIComponent(specialty)}`,
+        { method: "PUT", body: JSON.stringify({ values }), accessToken },
+      ),
 
     // --- Anamnese digital (§S28) — PÚBLICO, resolvido só pelo token (sem auth) ---
 

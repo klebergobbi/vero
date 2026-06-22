@@ -792,7 +792,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S29 — Fichas por especialidade  ·  \*DIVIDIDA: \[x] S29a (backend: @vero/types defs + schema versionado/cifrado + serviço) · \[ ] S29b (render dinâmico no web)\*
+\#### \[x] S29 — Fichas por especialidade  ·  \*DIVIDIDA: \[x] S29a (backend: @vero/types defs + schema versionado/cifrado + serviço) · \[x] S29b (render dinâmico no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1761,6 +1761,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (155 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB dev 5455): salvar ORTHO v1 (com campo estranho "hacker") → \*\*version 1\*\*; salvar v2 → \*\*version 2 (versionado)\*\*; `GET` → corrente v2 (Classe III/overjet 6) + histórico [v2,v1]; \*\*"hacker" filtrado\*\* (não persistido); especialidade inválida → \*\*400\*\*; anti-IDOR outro tenant → \*\*403\*\*. No banco: 2 linhas ORTHO, \*\*`valuesEnc` cifrado (texto "Classe" não vaza)\*\*, AuditLog `SENSITIVE_READ`/`SpecialtyForm`.
 
   \- \*Pendências p/ próxima:\* \*\*S29b\*\* — render dinâmico no web: página `/ficha/[patientId]` (ou aba) que lista as especialidades de `@vero/types`, escolhe uma, renderiza os `fields` (text/textarea/number/select) pré-preenchidos da versão corrente, salva via `PUT` (nova versão) + mostra histórico. api-client `getSpecialtyForm`/`saveSpecialtyForm` + tipos. Herdadas: `Professional.specialties` com enforcement, tela web do prontuário (só API), as de sempre.
+
+\- \*\*2026-06-22 · S29b — Fichas por especialidade: render dinâmico no web (FECHA a S29)\*\*
+
+  \- \*O que foi feito:\* tela de ficha clínica com render dinâmico. \*\*api-client:\* +`getSpecialtyForm(patientId, specialty)`/`saveSpecialtyForm(patientId, specialty, values)` + tipos `SpecialtyFormData`/`SpecialtyVersionMeta`.\* Página \*\*`/ficha/[patientId]`\*\* (Server Component) renderiza `<SpecialtyForms>`. `actions.ts` (Server Actions `getSpecialtyAction`/`saveSpecialtyAction`, BFF autenticado, traduz 400/403). `specialty-forms.tsx` (client): \*\*chips das especialidades\*\* de `SPECIALTY_FORMS` (@vero/types); ao trocar de especialidade, carrega a versão corrente (`useEffect`→Server Action) e \*\*renderiza os campos DINAMICAMENTE por tipo\*\* (`text`/`textarea`/`number`/`select` com options) pré-preenchidos; "Salvar nova versão" faz `PUT` (cria nova versão) e recarrega versão/histórico; mostra "Versão atual: vN" + "Histórico: v1, v2…".
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (2 métodos + 2 tipos), `apps/web/app/ficha/[patientId]/{page.tsx,actions.ts,specialty-forms.tsx}` (novos). Sem backend novo (consome S29a), sem migration.
+
+  \- \*Decisões:\* render \*\*data-driven\*\* a partir de `@vero/types` (a MESMA definição que o backend valida) — adicionar/editar campo de especialidade é um só lugar. Valores tratados como string no form (input/select/textarea); o backend filtra pela definição e cifra. Página standalone `/ficha/[patientId]` (a tela de prontuário web — S26 — segue só API; consolidar numa visão única do paciente é melhoria futura). Componente `Field` despacha por `type`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/ficha/demo-patient` → aba Ortodontia mostra "Versão atual: v2" (dados da S29a) → trocar p/ \*\*Implantodontia\*\* re-renderiza campos diferentes (Tipo ósseo/Torque/etc) → preencher Marca "Neodent"+Diâmetro 4 → "Salvar nova versão" → \*\*"Ficha salva (v1)"\*\* + "Histórico: v1" (screenshot). No banco: `SpecialtyForm` IMPLANT v1, \*\*`valuesEnc` cifrado ("Neodent" não vaza)\*\*.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S29 COMPLETA.\*\* Próxima no backlog: \*\*S30 — Plano de tratamento + execução\*\* (`TreatmentPlan`/`TreatmentItem`/`ExecutionLog`; converter orçamento em plano executável por sessão; registrar execução com data/profissional). Depende de S17+S26. Herdadas: `Professional.specialties` com enforcement, listagem de anamneses pendentes no app, tela web do prontuário (só API), navegação comum web (menu agenda/catalogo/orcamentos/ficha/odontograma), upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
 
 
 

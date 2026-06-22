@@ -56,6 +56,8 @@ model Tenant {
   medicalRecords   MedicalRecord[]
   recordEntries    RecordEntry[]
   attachments      Attachment[]
+  odontograms      Odontogram[]
+  toothConditions  ToothCondition[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -858,6 +860,7 @@ model MedicalRecord {
   patient     Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   entries     RecordEntry[]
   attachments Attachment[]
+  odontogram  Odontogram?
 
   @@index([tenantId])
 }
@@ -896,4 +899,40 @@ model Attachment {
 
   @@index([tenantId])
   @@index([recordId])
+}
+
+/// Odontograma (§6/S27): mapa dental vinculado ao prontuário (1 por prontuário).
+model Odontogram {
+  id        String   @id @default(cuid())
+  tenantId  String
+  recordId  String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  record     MedicalRecord    @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  conditions ToothCondition[]
+
+  @@index([tenantId])
+}
+
+/// Condição por dente/face (§6/S27). `face` e `condition` validados contra as
+/// listas de @vero/types. Única por (odontograma, dente, face) — setar substitui.
+model ToothCondition {
+  id           String   @id @default(cuid())
+  tenantId     String
+  odontogramId String
+  /// número FDI do dente (ex.: 11–48).
+  toothNumber  Int
+  face         String
+  condition    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  odontogram Odontogram @relation(fields: [odontogramId], references: [id], onDelete: Cascade)
+
+  @@unique([odontogramId, toothNumber, face])
+  @@index([tenantId])
+  @@index([odontogramId])
 }

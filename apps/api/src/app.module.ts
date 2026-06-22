@@ -43,6 +43,7 @@ import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { MeModule } from "./me/me.module";
+import { OdontogramModule } from "./odontogram/odontogram.module";
 import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
 import { PublicModule } from "./public/public.module";
@@ -132,6 +133,7 @@ import { RedisModule } from "./redis/redis.module";
     ReceiptModule,
     CreditModule,
     RecordModule,
+    OdontogramModule,
     MeModule,
     WhatsAppModule,
     PushModule,

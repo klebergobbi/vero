@@ -762,7 +762,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S27 — Odontograma
+\#### \[ ] S27 — Odontograma  ·  \*DIVIDIDA: \[x] S27a (backend: schema + serviço + @vero/types faces/condições) · \[ ] S27b (componente SVG interativo no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1701,6 +1701,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (143 pass, 2 skip; +4 crypto round-trip/tamper)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\*: add entrada+anexo → ver prontuário \*\*decifra\*\* o conteúdo; baixar anexo pela \*\*URL assinada sem auth\*\* → bytes originais (image/png); \*\*cifra em repouso confirmada no banco\*\* (`contentEnc LIKE '%dente%'` = false); \*\*AuditLog SENSITIVE_READ\*\* gravado; token adulterado → 404; token de paciente → 403.
 
   \- \*Pendências p/ próxima:\* \*\*S26 COMPLETA.\*\* Próxima no backlog: \*\*S27 — Odontograma\*\* (`Odontogram`/`ToothCondition`; `odontogram/service.ts`; componente SVG interativo no web; marcar condição por dente/face e persistir vinculado ao prontuário). Depende de S26. Herdadas: tela web do prontuário (hoje só API), upload real ao Spaces, integrações reais, CRUD de régua na web, as de sempre.
+
+\- \*\*2026-06-22 · S27a — Odontograma: backend (mapa dental vinculado ao prontuário)\*\*  ·  \*S27 DIVIDIDA em S27a (esta) + S27b (SVG no web)\*
+
+  \- \*O que foi feito:\* base do odontograma. \*\*`@vero/types/odontogram`\*\* (fonte única reusada no web S27b): `TOOTH_FACES` (MESIAL/DISTAL/OCCLUSAL/VESTIBULAR/LINGUAL/WHOLE), `TOOTH_CONDITIONS` (HEALTHY/CARIES/RESTORATION/ABSENT/EXTRACTED/IMPLANT/CROWN/ROOT_CANAL/FRACTURE/SEALANT — cada uma com `label`+`color` p/ o SVG), `FDI_PERMANENT_TEETH` (32 dentes), schemas Zod + `isValidToothNumber`. Schema: \*\*`Odontogram`\*\* (`recordId @unique` = 1 por prontuário) + \*\*`ToothCondition`\*\* (`toothNumber` Int FDI, `face`/`condition` String validados contra @vero/types, `@@unique([odontogramId, toothNumber, face])`) + migration. `OdontogramService` tenant-scoped (anti-IDOR `ensureOwned` no paciente; cria prontuário+odontograma sob demanda): `view` (lista condições + \*\*AUDITA SENSITIVE_READ\*\*), `setCondition` (upsert por dente/face; \*\*`HEALTHY` → delete\*\* = saudável é o padrão; devolve a lista atualizada). `OdontogramController`: `GET /odontogram/:patientId` (`record:read`), `PUT /odontogram/:patientId/conditions` (`record:write`).
+
+  \- \*Arquivos tocados:\* `packages/types/src/{odontogram.ts (novo),index.ts}`, `apps/api/prisma/schema.prisma` (+Odontogram +ToothCondition +back-relations Tenant/MedicalRecord), `apps/api/prisma/migrations/*_s27_odontogram/` (aditiva), `apps/api/src/odontogram/{odontogram.service,odontogram.controller,odontogram.module}.ts` + `odontogram/dto/odontogram.dto.ts` (novos), `apps/api/src/app.module.ts` (+OdontogramModule), teste `apps/api/test/odontogram.service.spec.ts` (3 casos). Sem dep nova. \*Permissions `record:*` reusadas.\*
+
+  \- \*Decisões:\* faces/condições como \*\*String validado contra const de @vero/types\*\* (não enum Prisma) — sem migration p/ novas condições e a MESMA lista alimenta o SVG do web (cores/labels). `HEALTHY` não persiste (= limpar) → o odontograma guarda só o que tem condição. `@@unique([odontogramId, toothNumber, face])` → setar substitui. Odontograma é 1:1 com o prontuário (reusa o MedicalRecord da S26). `setCondition` devolve a lista completa p/ o web re-renderizar.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (146 pass, 2 skip; +3)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\*: marcar 11/OCCLUSAL=CARIES e 21/WHOLE=IMPLANT → \*\*GET persiste ambas (render ao reabrir)\*\*; `HEALTHY` no 11 → \*\*removido\*\* (só 21 resta); dente FDI 99 → \*\*400\*\*; \*\*SENSITIVE_READ auditado\*\*; token de paciente → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S27b\*\* — componente SVG interativo no web: render dos 32 dentes (FDI), clicar dente/face → escolher condição → `PUT /odontogram/:patientId/conditions`; cores de @vero/types; reabrir mostra o estado salvo. api-client +`getOdontogram`/`setToothCondition`. Herdadas: tela web do prontuário (S26 só API), as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

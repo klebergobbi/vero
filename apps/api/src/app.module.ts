@@ -45,6 +45,7 @@ import { MeModule } from "./me/me.module";
 import { OrgModule } from "./org/org.module";
 import { PatientModule } from "./patient/patient.module";
 import { PublicModule } from "./public/public.module";
+import { ReceiptModule } from "./receipt/receipt.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 
@@ -126,6 +127,7 @@ import { RedisModule } from "./redis/redis.module";
     BillingModule,
     CollectionModule,
     InvoiceModule,
+    ReceiptModule,
     MeModule,
     WhatsAppModule,
     PushModule,

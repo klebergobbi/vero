@@ -51,6 +51,7 @@ model Tenant {
   collectionRules  CollectionRule[]
   collectionEvents CollectionEvent[]
   invoices         Invoice[]
+  receipts         Receipt[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -674,6 +675,7 @@ model Payment {
   charge         Charge          @relation(fields: [chargeId], references: [id], onDelete: Cascade)
   reconciliation Reconciliation?
   invoice        Invoice?
+  receipt        Receipt?
 
   @@index([tenantId])
 }
@@ -778,4 +780,20 @@ enum InvoiceStatus {
   PENDING
   ISSUED
   FAILED
+}
+
+/// Recibo de um pagamento (§6/S24). Registro da emissão (número); o PDF é gerado
+/// sob demanda e servido por URL assinada de expiração curta (não persiste blob).
+/// `paymentId` único → 1 recibo por pagamento.
+model Receipt {
+  id        String   @id @default(cuid())
+  tenantId  String
+  paymentId String   @unique
+  number    String
+  createdAt DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

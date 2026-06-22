@@ -722,7 +722,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S24 — Recibos
+\#### \[x] S24 — Recibos
 
 \*\*Depende de:\*\* S20
 
@@ -1665,6 +1665,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (130 pass, 2 skip; +3)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub NFS-e 9092, pagamento da S20): `POST /invoices` → worker emite → \*\*ISSUED, número 2026/2, pdf, externalId\*\* persistidos; \*\*falha\*\* (stub down) → Invoice ficou PENDING com \*\*`error: "fetch failed"` (motivo registrado)\*\*; re-emitir mesmo pagamento → \*\*409\*\*; token de paciente → \*\*403\*\*. \*Nota infra:\* processos `node ... &` morriam por SIGHUP ao sair o shell; reiniciados com `nohup`+`disown`.
 
   \- \*Pendências p/ próxima:\* \*\*S23 COMPLETA.\*\* Próxima no backlog: \*\*S24 — Recibos\*\* (`receipt/receipt.service.ts` gera PDF de um pagamento; endpoint; upload p/ DO Spaces com URL assinada de expiração curta). Depende de S20. Herdadas: auto-emitir NFS-e no reconcile, CRUD de régua na web, Asaas/Evolution/NFS-e reais, navegação comum web, as de sempre.
+
+\- \*\*2026-06-22 · S24 — Recibos (PDF + URL assinada de expiração curta)\*\*
+
+  \- \*O que foi feito:\* comprovante PDF de pagamento. Schema: \*\*`Receipt`\*\* (`paymentId @unique` → 1 recibo por pagamento, `number`) + migration aditiva. \*\*Dep nova `pdfkit`\*\* (+`@types/pdfkit`). `ReceiptService`: `issue` (valida pagamento owned anti-IDOR, cria/reusa Receipt com número sequencial `REC-00001`, devolve URL assinada); `generatePdf` (gera o PDF SOB DEMANDA com pdfkit — nome da clínica, RECIBO, paciente, valor, data do pagamento; NÃO persiste blob); \*\*URL assinada própria\*\* (token = `receiptId.exp.HMAC-SHA256` com o JWT_SECRET; TTL 5min) — `signedUrl`/`verifyToken` (valida assinatura em tempo constante + expiração). `ReceiptController`: `POST /receipts` (`billing:read`) → `{url, expiresAt}`; \*\*`GET /receipts/file/:token`\*\* (`@Public`, valida o token → stream `application/pdf` via `StreamableFile`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Receipt +back-relations), `apps/api/prisma/migrations/*_s24_receipt/` (aditiva), `apps/api/src/receipt/{receipt.service,receipt.controller,receipt.module}.ts` + `receipt/dto/receipt.dto.ts` (novos), `apps/api/src/app.module.ts` (+ReceiptModule), `apps/api/package.json` (+pdfkit/@types/pdfkit) + lockfile, teste `apps/api/test/receipt.service.spec.ts` (4 casos). \*Permissions `billing:read` reusada.\*
+
+  \- \*Decisões:\* \*\*URL assinada própria (HMAC+exp)\*\* em vez do upload ao DO Spaces — entrega exatamente "URL assinada de expiração curta" (mesmo conceito da presigned URL do S3) sem credenciais; o \*\*upload ao Spaces fica como troca de produção\*\* (desvio do §7 documentado, como PixCharge na S19). PDF gerado \*\*sob demanda\*\* ao acessar a URL (não persiste blob — recibo é pequeno e determinístico). Rota do arquivo é `@Public` (o token É a credencial). `paymentId @unique` → idempotência. Número sequencial por tenant (`count+1`; pequena corrida aceita no MVP).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (134 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only — pdfkit sem vulns) \*\*verdes\*\*. \*\*AO VIVO\*\*: `POST /receipts` → `{url assinada, expiresAt 5min}`; baixar a URL \*\*sem auth\*\* → \*\*200 `application/pdf`, começa com `%PDF-` (1602 bytes)\*\*; token adulterado → \*\*404\*\*; token expirado/receiptId trocado → 404 (unit); token de paciente em POST → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S24 COMPLETA.\*\* \*\*FECHA a FASE 2 financeira/comercial (S16–S24).\*\* Próxima no backlog: \*\*S25 — SPC consulta + inclusão\*\* (`integrations/spc/spc.service.ts` anti-SSRF + fila `spc-query`; +`CreditCheck`; consultar score (sandbox) antes de parcelar; inclusão de inadimplente registrada e auditada; consentimento/base legal). Depende de S5+S19. Herdadas: upload real ao DO Spaces, auto-emitir NFS-e/recibo no reconcile, CRUD de régua na web, integrações reais, navegação comum web, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

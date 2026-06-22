@@ -133,3 +133,24 @@ describe("MeService.checkIn (S14)", () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
+
+describe("MeService.myInstallments (S21)", () => {
+  it("anti-IDOR: filtra pelas cobranças do PRÓPRIO paciente (tenant+owner)", async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      installment: { findMany },
+    } as unknown as PrismaService;
+    const service = new MeService(
+      prisma,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.myInstallments("t1", "p1");
+
+    const arg = findMany.mock.calls[0][0];
+    expect(arg.where.tenantId).toBe("t1");
+    expect(arg.where.charge).toEqual({ patientId: "p1", deletedAt: null });
+  });
+});

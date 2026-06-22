@@ -680,7 +680,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S21 — App do Paciente: financeiro
+\#### \[x] S21 — App do Paciente: financeiro
 
 \*\*Depende de:\*\* S19, S8
 
@@ -1629,6 +1629,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (118 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub Asaas + ASAAS_WEBHOOK_SECRET, parcela da S19 asaasPaymentId `pay_stub_2`): webhook sem/segredo errado → \*\*401\*\*; webhook válido → \*\*enqueued\*\* → parcela \*\*PAID\*\*+paidAt + \*\*1 Payment\*\*; reprocesso do mesmo evento → \*\*ainda 1 Payment (sem baixa dupla)\*\*; status da Charge → \*\*PARTIAL\*\* (1 de 3 parcelas).
 
   \- \*Pendências p/ próxima:\* \*\*S20 COMPLETA.\*\* Próxima no backlog: \*\*S21 — App do Paciente: financeiro\*\* (endpoint "minhas parcelas" owner-scoped; telas mobile: ver próxima parcela, copiar PIX copia-e-cola / código de barras do boleto; teste anti-IDOR — paciente não vê parcela de outro). Depende de S19+S8. Herdadas: Asaas real, copy-button PIX no web, lista de cobranças no web, navegação comum web, as de sempre.
+
+\- \*\*2026-06-21 · S21 — App do Paciente: financeiro (ver parcelas + copiar PIX/boleto)\*\*
+
+  \- \*O que foi feito:\* o paciente vê e copia o pagamento das próprias parcelas. \*\*Backend:\* `MeService.myInstallments` + `GET /me/installments` (\*\*`@Patient`\*\*, owner-scoped) — lista as parcelas das cobranças DO paciente via filtro `charge.patientId` (anti-IDOR), pendentes primeiro (enum) e por vencimento; retorna valor/venc/status + `pixPayload`/`boletoBarcode` + método.\* \*\*Mobile:\* `lib/api.ts` +`myInstallments` (+tipo `InstallmentSummary`); +dep \*\*`expo-clipboard`\*\*; tela `app/financeiro.tsx` (cards: Parcela N · valor · status, "Vence em DD/MM", botões \*\*"Copiar PIX copia-e-cola"\*\* e "Copiar código do boleto" só em parcela não-paga → `Clipboard.setStringAsync` + Alert "Copiado"); link "Financeiro" na home.\*
+
+  \- \*Arquivos tocados:\* `apps/api/src/me/{me.service,me.controller}.ts`, `apps/api/test/me.service.spec.ts` (+1 anti-IDOR), `apps/mobile-patient/{lib/api.ts,app/financeiro.tsx (novo),app/index.tsx,package.json}` + `pnpm-lock.yaml`. Sem migration, sem backend novo além do endpoint.
+
+  \- \*Decisões:\* owner-scope por \*\*`charge.patientId`\*\* (Installment não tem patientId direto — filtra pela relação charge). `expo-clipboard` (módulo Expo padrão) p/ copiar PIX/boleto — copy-button é o cerne do "paciente paga". Botões de cópia só em parcela não-paga. `@Patient` garante 403 p/ token de equipe. Sem ação de "pagar no app" (PIX/boleto são pagos fora; o app só exibe/copia) — alinhado ao aceite.
+
+  \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc` do mobile)/`test` (119 pass, 2 skip; +1)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*; \*\*expo-doctor 21/21\*\* + \*\*`expo export`\*\* empacotou (financeiro + expo-clipboard resolvem no Metro). \*\*AO VIVO\*\* (paciente demo, cobrança 3x da S19 com 1 parcela paga na S20): `GET /me/installments` → \*\*3 parcelas\*\* (2 PENDING com PIX + 1 PAID, pendentes primeiro); token de equipe → \*\*403\*\*. Anti-IDOR coberto por unit test (filtro tenant+charge.patientId).
+
+  \- \*Pendências p/ próxima:\* \*\*S21 COMPLETA.\*\* Próxima no backlog: \*\*S22 — Régua de cobrança\*\* (`CollectionRule`+`CollectionEvent`; fila `collection-ruler` cron diário; lembretes D-3/D0/D+X via WhatsApp, idempotente por (parcela, etapa), respeita opt-out). Depende de S19+S12. Herdadas: Asaas real, copy-button PIX no web, navegação comum web, as de sempre.
 
 
 

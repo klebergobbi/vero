@@ -64,6 +64,12 @@ export class MeController {
     return this.me.myProfessionals(tenantId);
   }
 
+  /** GET /me/installments — parcelas do próprio paciente (§S21, anti-IDOR). */
+  @Get("installments")
+  myInstallments(@TenantId() tenantId: string, @PatientId() patientId: string) {
+    return this.me.myInstallments(tenantId, patientId);
+  }
+
   /** GET /me/slots — horários livres p/ o paciente agendar online (§S15c). */
   @Get("slots")
   mySlots(@TenantId() tenantId: string, @Query() query: MeSlotsQueryDto) {

@@ -44,6 +44,18 @@ export interface NamedRef {
   name: string;
 }
 
+/** Parcela do paciente (§S21). */
+export interface InstallmentSummary {
+  id: string;
+  number: number;
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  pixPayload: string | null;
+  boletoBarcode: string | null;
+  charge: { method: string };
+}
+
 /** Contrato — resumo (§S18). */
 export interface ContractSummary {
   id: string;
@@ -198,6 +210,11 @@ export const api = {
       accessToken,
       body: JSON.stringify(input),
     }),
+
+  // --- Financeiro do paciente (§S21) ---
+
+  myInstallments: (accessToken: string): Promise<InstallmentSummary[]> =>
+    request<InstallmentSummary[]>("/me/installments", { accessToken }),
 
   // --- Contratos do paciente (§S18) ---
 

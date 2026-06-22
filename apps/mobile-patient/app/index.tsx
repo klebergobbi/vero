@@ -251,7 +251,12 @@ export default function Home() {
         </Link>
         <Link href="/contracts" asChild>
           <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
-            <Text style={styles.bookBtnText}>Meus contratos</Text>
+            <Text style={styles.bookBtnText}>Contratos</Text>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/financeiro" asChild>
+          <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
+            <Text style={styles.bookBtnText}>Financeiro</Text>
           </TouchableOpacity>
         </Link>
       </View>

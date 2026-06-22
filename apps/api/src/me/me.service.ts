@@ -55,6 +55,31 @@ export class MeService {
     return this.org.listProfessionals(tenantId);
   }
 
+  /**
+   * Parcelas do próprio paciente (§S21) — owner-scoped pelo dono da cobrança
+   * (anti-IDOR: o filtro `charge.patientId` garante que só vê as próprias).
+   * Pendentes primeiro (enum: PENDING antes), depois por vencimento.
+   */
+  myInstallments(tenantId: string, patientId: string) {
+    const scope = new TenantScope(tenantId);
+    return this.prisma.installment.findMany({
+      where: scope.where<Prisma.InstallmentWhereInput>({
+        charge: { patientId, deletedAt: null },
+      }),
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+      select: {
+        id: true,
+        number: true,
+        amountCents: true,
+        dueDate: true,
+        status: true,
+        pixPayload: true,
+        boletoBarcode: true,
+        charge: { select: { method: true } },
+      },
+    });
+  }
+
   myAppointments(tenantId: string, patientId: string) {
     const scope = new TenantScope(tenantId);
     return this.prisma.appointment.findMany({

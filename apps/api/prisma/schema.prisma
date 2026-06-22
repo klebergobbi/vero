@@ -48,6 +48,8 @@ model Tenant {
   installments     Installment[]
   payments         Payment[]
   reconciliations  Reconciliation[]
+  collectionRules  CollectionRule[]
+  collectionEvents CollectionEvent[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -229,6 +231,8 @@ model Patient {
   notes        String?
   /// hash argon2 da senha do App do Paciente (null = paciente ainda sem acesso ao app).
   passwordHash String?
+  /// opt-out de mensagens automáticas (régua de cobrança, lembretes — §S22).
+  messagingOptOut Boolean @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
@@ -643,9 +647,10 @@ model Installment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  charge  Charge   @relation(fields: [chargeId], references: [id], onDelete: Cascade)
-  payment Payment?
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge           Charge            @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  payment          Payment?
+  collectionEvents CollectionEvent[]
 
   @@index([tenantId])
   @@index([chargeId])
@@ -706,4 +711,41 @@ enum InstallmentStatus {
   PAID
   OVERDUE
   CANCELLED
+}
+
+/// Régua de cobrança (§6/S22): etapas escalonadas relativas ao vencimento.
+/// `steps` = JSON [{ offsetDays, template }] — offsetDays<0 antes do venc (D-3),
+/// 0 no venc (D0), >0 após (D+X). Por enquanto 1 régua padrão por tenant.
+model CollectionRule {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  active    Boolean  @default(true)
+  steps     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// Evento de cobrança disparado para uma parcela numa etapa (§6/S22). O
+/// `@@unique([installmentId, stepKey])` garante IDEMPOTÊNCIA: não reenvia a mesma
+/// etapa da mesma parcela.
+model CollectionEvent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  installmentId String
+  /// chave da etapa (offsetDays como string, ex.: "-3", "0", "5").
+  stepKey       String
+  channel       String   @default("WHATSAPP")
+  status        String   @default("SENT")
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  installment Installment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+
+  @@unique([installmentId, stepKey])
+  @@index([tenantId])
 }

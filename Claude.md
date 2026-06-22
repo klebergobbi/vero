@@ -694,7 +694,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S22 — Régua de cobrança
+\#### \[x] S22 — Régua de cobrança
 
 \*\*Depende de:\*\* S19, S12
 
@@ -1641,6 +1641,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc` do mobile)/`test` (119 pass, 2 skip; +1)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*; \*\*expo-doctor 21/21\*\* + \*\*`expo export`\*\* empacotou (financeiro + expo-clipboard resolvem no Metro). \*\*AO VIVO\*\* (paciente demo, cobrança 3x da S19 com 1 parcela paga na S20): `GET /me/installments` → \*\*3 parcelas\*\* (2 PENDING com PIX + 1 PAID, pendentes primeiro); token de equipe → \*\*403\*\*. Anti-IDOR coberto por unit test (filtro tenant+charge.patientId).
 
   \- \*Pendências p/ próxima:\* \*\*S21 COMPLETA.\*\* Próxima no backlog: \*\*S22 — Régua de cobrança\*\* (`CollectionRule`+`CollectionEvent`; fila `collection-ruler` cron diário; lembretes D-3/D0/D+X via WhatsApp, idempotente por (parcela, etapa), respeita opt-out). Depende de S19+S12. Herdadas: Asaas real, copy-button PIX no web, navegação comum web, as de sempre.
+
+\- \*\*2026-06-21 · S22 — Régua de cobrança (cron + lembretes WhatsApp escalonados)\*\*
+
+  \- \*O que foi feito:\* lembretes/cobranças automáticos. Schema: \*\*`CollectionRule`\*\* (tenantId, active, `steps Json` = `[{offsetDays, template}]`, offsetDays<0 antes do venc/0 no venc/>0 após) + \*\*`CollectionEvent`\*\* (`@@unique([installmentId, stepKey])` → IDEMPOTÊNCIA por parcela+etapa) + `Patient.messagingOptOut` (opt-out de mensagens automáticas) + migration aditiva. \*\*`CollectionService.runDueCollections(now)`\*\*: p/ cada régua ativa × etapa, acha parcelas PENDENTES cujo vencimento = `hoje − offsetDays` (`dueDateRangeForStep`), \*\*excluindo paciente com `messagingOptOut`\*\* (filtro na query), registra `CollectionEvent` (unique → não reenvia) e envia WhatsApp (`WhatsAppService.sendText`, best-effort/registrado). Fila \*\*`collection-ruler`\*\* (`CollectionRulerScheduler` adiciona repeatable job cron `0 8 * * *` no boot; `CollectionRulerProcessor` chama o service). Utils puros (`parseSteps`/`dueDateRangeForStep`/`renderTemplate`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+CollectionRule +CollectionEvent +Patient.messagingOptOut +back-relations), `apps/api/prisma/migrations/*_s22_collection/` (aditiva), `apps/api/src/collection/{collection.util,collection.service,collection-ruler,collection.module}.ts` (novos), `apps/api/src/app.module.ts` (+CollectionModule), testes `apps/api/test/{collection.util,collection.service}.spec.ts` (8 casos). Sem dep nova (BullMQ/WhatsApp já existiam). \*Permissions: nenhuma (cron interno).\*
+
+  \- \*Decisões:\* etapas como \*\*JSON\*\* na régua (flexível, sem modelo Step; §8). Idempotência por \*\*unique (installmentId, stepKey)\*\* — registra o evento ANTES de enviar; se já existe → pula (não reenvia, mesmo aceite). Envio \*\*best-effort\*\* (evento registrado garante não-reenvio; falha de WhatsApp é logada, não retenta no mesmo dia — reminder, não crítico). Opt-out via novo `Patient.messagingOptOut` (filtrado na query). Régua resolvida por tenant; 1 régua padrão por tenant (criável via seed/script). Cron via repeatable job BullMQ (jobId fixo não duplica).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (127 pass, 2 skip; +8)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (contexto Nest + stub Evolution na 9091 + régua D-3/D0/D+5 semeada): 1ª execução no dia do venc (D0) → \*\*enviou + 1 CollectionEvent\*\*; 2ª execução mesmo dia → \*\*skipped, ainda 1 evento (não reenvia)\*\*; paciente com \*\*opt-out\*\* → \*\*0 eventos\*\* p/ a parcela dele. Script descartável removido.
+
+  \- \*Pendências p/ próxima:\* \*\*S22 COMPLETA.\*\* Próxima no backlog: \*\*S23 — NFS-e\*\* (`integrations/nfse/nfse.service.ts` via integrador; fila `nfse-emitter` retry/backoff; +`Invoice`; emitir NFS-e em homologação a partir de um pagamento; falha → DLQ com motivo). Depende de S20. Herdadas: CRUD de régua na web (hoje via seed/script), `cron diário da confirmação D-1` (S12, ainda sem disparador — agora há padrão de cron p/ reusar), Asaas/Evolution reais, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

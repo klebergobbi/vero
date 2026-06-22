@@ -37,6 +37,7 @@ import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
 import { BillingModule } from "./billing/billing.module";
 import { BudgetModule } from "./budget/budget.module";
+import { CollectionModule } from "./collection/collection.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
 import { MeModule } from "./me/me.module";
@@ -122,6 +123,7 @@ import { RedisModule } from "./redis/redis.module";
     BudgetModule,
     ContractModule,
     BillingModule,
+    CollectionModule,
     MeModule,
     WhatsAppModule,
     PushModule,

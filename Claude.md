@@ -774,7 +774,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S28 — Anamnese digital  ·  \*DIVIDIDA: \[x] S28a (backend: schema + serviço + link público preencher/assinar + ver) · \[ ] S28b (tela pública de preenchimento no web + integração no app)\*
+\#### \[x] S28 — Anamnese digital  ·  \*DIVIDIDA: \[x] S28a (backend: schema + serviço + link público preencher/assinar + ver) · \[x] S28b (tela pública de preenchimento no web)\*
 
 \*\*Depende de:\*\* S26, S18
 
@@ -1737,6 +1737,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint`/`test` (151 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo pré-existente, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real na DB de dev 5455): login equipe → criar template → \*\*enviar\*\* (token+link) → \*\*GET form público sem JWT\*\* (PENDING + perguntas + nome do paciente) → \*\*POST assinar\*\* (SIGNED + contentHash + signedAt) → \*\*uso único\*\* (re-POST e re-GET → 404) → \*\*staff view\*\* decifra respostas + evidência (`integrityOk:true`, signerIp). No banco: `status=SIGNED`, `recordId` vinculado, \*\*`answersEnc` ilegível e o texto "penicilina" NÃO aparece (cifrado em repouso)\*\*, AuditLog `SENSITIVE_READ`/`Anamnesis`/`demo-patient`. \*\*Anti-IDOR\*\*: enviar p/ paciente de outro tenant → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S28b\*\* — tela PÚBLICA de preenchimento no web (`/anamnese/[token]`: GET form → preencher → POST assinar; sem login, como a página de exclusão de conta) + api-client `getAnamnesisForm`/`submitAnamnesis` + (opcional) listagem no app do paciente das anamneses pendentes. \*Nota:\* o \*\*disparo automático do link por WhatsApp\*\* (régua/Evolution) pode entrar junto da S22/S33; a S28 só gera o link. Herdadas: tela web do prontuário (só API), anatomia M/D no odontograma, upload real ao Spaces, integrações reais, navegação comum web, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-22 · S28b — Anamnese digital: tela pública de preenchimento no web (FECHA a S28)\*\*
+
+  \- \*O que foi feito:\* o paciente preenche/assina a anamnese pelo link, sem login. \*\*api-client:\* +`getAnamnesisForm(token)`/`submitAnamnesis(token, answers)` (PÚBLICOS — sem accessToken, resolvidos só pelo token, como as rotas `/public/*` da S15) + tipos `AnamnesisForm`/`AnamnesisQuestion`/`AnamnesisSignResult`.\* Página \*\*PÚBLICA `/anamnese/[token]`\*\* (Server Component BFF — busca o form; link inválido/expirado/já-preenchido → aviso âmbar, não derruba). `actions.ts` (Server Action `submitAnamnesisAction` — traduz 400→"já preenchida", 404→"link inválido/expirado"). `fill-form.tsx` (client: um input por pergunta, "Assinar e enviar" via `useTransition`, estado de sucesso, aviso de evidência data/hora/IP). `middleware.ts`: `/anamnese` adicionado às `PUBLIC_PATHS` (acessível sem sessão, como `/exclusao-de-conta`).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (2 métodos + 3 tipos), `apps/web/app/anamnese/[token]/{page.tsx,actions.ts,fill-form.tsx}` (novos), `apps/web/middleware.ts` (+rota pública). Sem backend novo (consome S28a), sem migration.
+
+  \- \*Decisões:\* tela PÚBLICA (não no app do paciente) porque o link funciona em qualquer dispositivo/navegador — é o "link de preenchimento" do aceite; listagem de anamneses pendentes no app fica como melhoria futura. Cliente público sem token (mesmo padrão do booking S15b). Inputs de texto livres (o template traz só `{id,label}` — sem tipos de campo ainda; evoluir p/ select/sim-não no futuro). Mensagem de evidência (data/hora/IP) explicita a assinatura eletrônica simples.
+
+  \- \*Verificação:\* `pnpm lint`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* gerar token via API → abrir `/anamnese/[token]` \*\*sem login\*\* renderiza "Anamnese" + 2 inputs → preencher + "Assinar e enviar" → \*\*"Anamnese enviada e assinada"\*\* → reabrir o MESMO link → \*\*aviso "inválido/expirou/já preenchido"\*\* (uso único, screenshot). No banco: `status=SIGNED`, `recordId` vinculado, `signerIp=::1`, \*\*`answersEnc` cifrado (texto "resposta" não vaza)\*\*.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S28 COMPLETA.\*\* Próxima no backlog: \*\*S29 — Fichas por especialidade\*\* (`SpecialtyForm` com campos por tipo: Orto/Implanto/Endo/HOF/Alinhadores/Estética; `specialty/service.ts`; render dinâmico no web; campos persistidos e versionados). Depende de S26. Herdadas: listagem de anamneses pendentes no app, disparo do link por WhatsApp (régua), tela web do prontuário (só API), anatomia M/D no odontograma, upload real ao Spaces, integrações reais, navegação comum web, `MessageLog`, as de sempre.
 
 
 

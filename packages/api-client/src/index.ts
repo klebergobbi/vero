@@ -96,6 +96,23 @@ export interface OdontogramData {
   conditions: ToothCondition[];
 }
 
+/** Anamnese digital (§S28) — formulário público resolvido por token de uso único. */
+export interface AnamnesisQuestion {
+  id: string;
+  label: string;
+}
+export interface AnamnesisForm {
+  status: string;
+  patientName: string;
+  templateName: string;
+  questions: AnamnesisQuestion[];
+}
+export interface AnamnesisSignResult {
+  status: string;
+  contentHash: string;
+  signedAt: string;
+}
+
 /** Orçamento — resumo para a listagem (§S17). */
 export interface BudgetSummary {
   id: string;
@@ -438,6 +455,25 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify(input),
         accessToken,
       }),
+
+    // --- Anamnese digital (§S28) — PÚBLICO, resolvido só pelo token (sem auth) ---
+
+    getAnamnesisForm: (token: string): Promise<AnamnesisForm> =>
+      request<AnamnesisForm>(
+        baseUrl,
+        `/anamnesis/fill/${encodeURIComponent(token)}`,
+        {},
+      ),
+
+    submitAnamnesis: (
+      token: string,
+      answers: Record<string, string>,
+    ): Promise<AnamnesisSignResult> =>
+      request<AnamnesisSignResult>(
+        baseUrl,
+        `/anamnesis/fill/${encodeURIComponent(token)}`,
+        { method: "POST", body: JSON.stringify({ answers }) },
+      ),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

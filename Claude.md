@@ -666,7 +666,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S20 — Baixa automática (reconciler)
+\#### \[x] S20 — Baixa automática (reconciler)
 
 \*\*Depende de:\*\* S19
 
@@ -1617,6 +1617,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (114 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright, stub Asaas):\* orçamento aprovado (R$160) → "Gerar cobrança" PIX 2x venc 15/08 → redireciona p/ `/cobrancas/[id]` mostrando \*\*Parcela 1 (15/08, R$80,00, PIX copia-e-cola) + Parcela 2 (15/09, R$80,00)\*\*, ambas Pendente.\*
 
   \- \*Pendências p/ próxima:\* \*\*S19 COMPLETA.\*\* Próxima no backlog: \*\*S20 — Baixa automática (reconciler)\*\* (`billing/asaas.webhook.controller.ts` valida assinatura; fila `payment-reconciler` idempotente; +`Payment`+`Reconciliation`; webhook de pagamento dá baixa na parcela; reprocesso não dá baixa dupla). Depende de S19. Herdadas: Asaas real, copy-button PIX, lista de cobranças no web, navegação comum web, as de sempre.
+
+\- \*\*2026-06-21 · S20 — Baixa automática (reconciler) — webhook Asaas + fila idempotente\*\*
+
+  \- \*O que foi feito:\* conciliação automática de pagamento. Schema: \*\*`Payment`\*\* (`installmentId @unique` → 1 pagamento por parcela = idempotência DURÁVEL; chargeId, amountCents, asaasPaymentId, paidAt) + \*\*`Reconciliation`\*\* (`paymentId @unique`, `@@unique([tenantId, eventKey])` — 2ª camada; eventKey = `event:asaasPaymentId`) + migration aditiva. \*\*`AsaasWebhookController`\*\* (`POST /integrations/asaas/webhook`, `@Public`, valida `ASAAS_WEBHOOK_SECRET` via header `asaas-access-token` em tempo constante, fail-closed; só PAYMENT_RECEIVED/CONFIRMED; enfileira e responde 200). Fila \*\*`payment-reconciler`\*\* (BullMQ, jobId `asaas-{event}-{paymentId}` dedup + DLQ ao esgotar). \*\*`ReconcileService.reconcile`\*\*: acha a parcela pelo `asaasPaymentId`, IDEMPOTENTE (já PAID → no-op; P2002 no create → no-op); em `$transaction` cria Payment + Reconciliation, marca parcela PAID+paidAt, e \*\*recalcula o status da Charge\*\* (PENDING/PARTIAL/PAID). Envs `ASAAS_WEBHOOK_SECRET` opcional.
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Payment +Reconciliation +back-relations), `apps/api/prisma/migrations/*_s20_payment/` (aditiva), `apps/api/src/config/env.validation.ts` + `.env.example` (+ASAAS_WEBHOOK_SECRET), `apps/api/src/billing/{reconcile.service,payment-reconciler,asaas.webhook.controller,billing.module}.ts` (novos/+queue), teste `apps/api/test/reconcile.service.spec.ts` (4 casos). Sem dep nova (BullMQ já existia). \*Permissions: webhook é `@Public` (segredo compartilhado), sem permission.\*
+
+  \- \*Decisões:\* idempotência em \*\*2 camadas\*\* — estado (`Installment.status === PAID` → no-op rápido) + DB (`Payment.installmentId @unique` → P2002 no reprocesso → no-op). Webhook \*\*enfileira\*\* (não processa síncrono) — resiliente a retempestade do Asaas; jobId determinístico deduplica. Parcela resolvida por `asaasPaymentId` (não vem tenant no webhook; o id é único na conta Asaas) — multi-conta Asaas por tenant é futuro. `eventKey` na Reconciliation como 2ª barreira. Status da Charge recalculado a cada baixa.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (118 pass, 2 skip; +4)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub Asaas + ASAAS_WEBHOOK_SECRET, parcela da S19 asaasPaymentId `pay_stub_2`): webhook sem/segredo errado → \*\*401\*\*; webhook válido → \*\*enqueued\*\* → parcela \*\*PAID\*\*+paidAt + \*\*1 Payment\*\*; reprocesso do mesmo evento → \*\*ainda 1 Payment (sem baixa dupla)\*\*; status da Charge → \*\*PARTIAL\*\* (1 de 3 parcelas).
+
+  \- \*Pendências p/ próxima:\* \*\*S20 COMPLETA.\*\* Próxima no backlog: \*\*S21 — App do Paciente: financeiro\*\* (endpoint "minhas parcelas" owner-scoped; telas mobile: ver próxima parcela, copiar PIX copia-e-cola / código de barras do boleto; teste anti-IDOR — paciente não vê parcela de outro). Depende de S19+S8. Herdadas: Asaas real, copy-button PIX no web, lista de cobranças no web, navegação comum web, as de sempre.
 
 
 

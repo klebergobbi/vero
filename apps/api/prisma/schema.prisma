@@ -46,6 +46,8 @@ model Tenant {
   signatures       Signature[]
   charges          Charge[]
   installments     Installment[]
+  payments         Payment[]
+  reconciliations  Reconciliation[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -617,6 +619,7 @@ model Charge {
   budget       Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   patient      Patient       @relation(fields: [patientId], references: [id])
   installments Installment[]
+  payments     Payment[]
 
   @@index([tenantId])
   @@index([patientId])
@@ -640,11 +643,49 @@ model Installment {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge  Charge   @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  payment Payment?
 
   @@index([tenantId])
   @@index([chargeId])
+}
+
+/// Pagamento recebido de uma parcela (§6/S20). `installmentId` é ÚNICO → 1 pagamento
+/// por parcela (idempotência durável: reprocessar o webhook não dá baixa dupla).
+model Payment {
+  id             String   @id @default(cuid())
+  tenantId       String
+  installmentId  String   @unique
+  chargeId       String
+  amountCents    Int
+  asaasPaymentId String
+  paidAt         DateTime
+  createdAt      DateTime @default(now())
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  installment    Installment     @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+  charge         Charge          @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  reconciliation Reconciliation?
+
+  @@index([tenantId])
+}
+
+/// Conciliação: registro de que o pagamento foi casado a partir de um evento do
+/// Asaas. `eventKey` (event + paymentId) é único por tenant — 2ª camada de
+/// idempotência (além do unique de Payment.installmentId).
+model Reconciliation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  paymentId String   @unique
+  eventKey  String
+  createdAt DateTime @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, eventKey])
+  @@index([tenantId])
 }
 
 enum PaymentMethod {

@@ -40,6 +40,9 @@ export const envSchema = z.object({
     .url("ASAAS_API_URL deve ser uma URL válida")
     .optional(),
   ASAAS_API_KEY: z.string().min(1).optional(),
+  // Segredo que o webhook do Asaas deve apresentar (header asaas-access-token) —
+  // valida a origem (S20). Sem ele, o webhook recusa tudo (fail-closed).
+  ASAAS_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -53,6 +53,9 @@ model Tenant {
   invoices         Invoice[]
   receipts         Receipt[]
   creditChecks     CreditCheck[]
+  medicalRecords   MedicalRecord[]
+  recordEntries    RecordEntry[]
+  attachments      Attachment[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -114,6 +117,7 @@ model User {
   availabilities Availability[] @relation("ProfessionalAvailability")
   deviceTokens   DeviceToken[]
   notifications  Notification[]
+  recordEntries  RecordEntry[]  @relation("RecordAuthor")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -252,6 +256,7 @@ model Patient {
   contracts    Contract[]
   charges      Charge[]
   creditChecks CreditCheck[]
+  medicalRecord MedicalRecord?
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -838,4 +843,57 @@ enum CreditCheckStatus {
   PENDING
   DONE
   FAILED
+}
+
+/// Prontuário do paciente (§6/S26): 1 por paciente. Reúne as entradas clínicas e
+/// anexos. Dado de SAÚDE — conteúdo cifrado em repouso; todo acesso → SENSITIVE_READ.
+model MedicalRecord {
+  id        String   @id @default(cuid())
+  tenantId  String
+  patientId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient     Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entries     RecordEntry[]
+  attachments Attachment[]
+
+  @@index([tenantId])
+}
+
+/// Entrada do prontuário (evolução clínica). `contentEnc` = conteúdo CIFRADO em
+/// repouso (AES-256-GCM) — §4 dado sensível cifrado. `authorId` = profissional.
+model RecordEntry {
+  id         String   @id @default(cuid())
+  tenantId   String
+  recordId   String
+  authorId   String
+  contentEnc String
+  createdAt  DateTime @default(now())
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  record MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  author User          @relation("RecordAuthor", fields: [authorId], references: [id])
+
+  @@index([tenantId])
+  @@index([recordId])
+}
+
+/// Anexo do prontuário (imagem/exame). Bytes CIFRADOS em repouso (`dataEnc`);
+/// servido por URL assinada de expiração curta. §7: produção usa DO Spaces.
+model Attachment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  recordId    String
+  filename    String
+  contentType String
+  dataEnc     Bytes
+  createdAt   DateTime @default(now())
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  record MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([recordId])
 }

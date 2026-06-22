@@ -748,7 +748,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S26 — Prontuário (MedicalRecord) + anexos
+\#### \[x] S26 — Prontuário (MedicalRecord) + anexos
 
 \*\*Depende de:\*\* S5
 
@@ -1689,6 +1689,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (139 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub SPC 9093): consultar SEM consentimento → \*\*400\*\*; consulta → worker → \*\*DONE score=742 + externalId\*\*; inclusão (R$500) → \*\*DONE + externalId\*\*; \*\*AuditLog: CREDIT_CHECK=1, CREDIT_INCLUSION=1\*\* (tudo auditado); token de paciente → \*\*403\*\*. Anti-IDOR/guards por unit test.
 
   \- \*Pendências p/ próxima:\* \*\*S25 COMPLETA.\*\* Próxima no backlog: \*\*S26 — Prontuário (MedicalRecord) + anexos\*\* (início da FASE 3 clínica: `MedicalRecord`/`RecordEntry`/`Attachment`; upload p/ Spaces URL assinada; cifra em repouso; acesso gera `SENSITIVE_READ` no AuditLog; anti-IDOR). Depende de S5. Herdadas: integrações reais (Asaas/Evolution/NFS-e/SPC), upload real ao Spaces, CRUD de régua na web, navegação comum web, as de sempre.
+
+\- \*\*2026-06-22 · S26 — Prontuário (MedicalRecord) + anexos — INÍCIO DA FASE 3 (clínica)\*\*
+
+  \- \*O que foi feito:\* registro clínico seguro. Schema: \*\*`MedicalRecord`\*\* (1 por paciente, `patientId @unique`) + \*\*`RecordEntry`\*\* (`contentEnc` = evolução CIFRADA em repouso, `authorId`=profissional) + \*\*`Attachment`\*\* (`dataEnc Bytes` = imagem/exame CIFRADO, filename/contentType) + migration. \*\*`CryptoService`\*\* (AES-256-GCM, §4 cifra em repouso): chave = `sha256(JWT_SECRET)` (sem nova env), IV aleatório por cifragem, authTag GCM = tamper-evident; `encrypt/decrypt` (Buffer) + `encryptString/decryptString`; formato `base64(iv|tag|ciphertext)`. `RecordService` tenant-scoped (anti-IDOR `ensureOwned` no paciente ANTES de tocar o prontuário): `viewRecord` (decifra entradas + devolve anexos com \*\*URL assinada fresca\*\* + \*\*AUDITA SENSITIVE_READ\*\*), `addEntry`/`addAttachment` (cifram), `serveAttachment` (valida token → decifra → AUDITA SENSITIVE_READ). Anexos por \*\*URL assinada\*\* própria (HMAC+exp 5min, como S24). `RecordController`: `GET /records/:patientId` (`record:read`), `POST /records/:patientId/{entries,attachments}` (`record:write`), \*\*`GET /records/attachments/:token`\*\* (`@Public`, stream `StreamableFile` com contentType do anexo).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+3 modelos +back-relations Tenant/Patient/User), `apps/api/prisma/migrations/*_s26_medical_record/` (aditiva), `apps/api/src/record/{crypto.service,record.service,record.controller,record.module}.ts` + `record/dto/record.dto.ts` (novos), `apps/api/src/app.module.ts` (+RecordModule), teste `apps/api/test/crypto.service.spec.ts` (4 casos). Sem dep nova (`crypto` nativo). \*Permissions `record:*` reusadas.\*
+
+  \- \*Decisões:\* \*\*cifra AES-256-GCM\*\* com chave derivada do JWT_SECRET (sha256) — sem nova env/segredo; o authTag dá integridade (decifrar adulterado falha). Anexos: bytes \*\*cifrados no DB\*\* + servidos por URL assinada de exp curta (upload ao \*\*DO Spaces\*\* = troca de produção, desvio §7 documentado como S24). Upload via \*\*base64 no JSON\*\* (não multipart) p/ simplicidade/testabilidade (limite 8MB). `SENSITIVE_READ` auditado em TODA leitura (ver prontuário + baixar anexo). `viewRecord` faz `upsert` do prontuário (cria na 1ª visualização).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (143 pass, 2 skip; +4 crypto round-trip/tamper)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\*: add entrada+anexo → ver prontuário \*\*decifra\*\* o conteúdo; baixar anexo pela \*\*URL assinada sem auth\*\* → bytes originais (image/png); \*\*cifra em repouso confirmada no banco\*\* (`contentEnc LIKE '%dente%'` = false); \*\*AuditLog SENSITIVE_READ\*\* gravado; token adulterado → 404; token de paciente → 403.
+
+  \- \*Pendências p/ próxima:\* \*\*S26 COMPLETA.\*\* Próxima no backlog: \*\*S27 — Odontograma\*\* (`Odontogram`/`ToothCondition`; `odontogram/service.ts`; componente SVG interativo no web; marcar condição por dente/face e persistir vinculado ao prontuário). Depende de S26. Herdadas: tela web do prontuário (hoje só API), upload real ao Spaces, integrações reais, CRUD de régua na web, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

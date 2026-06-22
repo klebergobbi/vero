@@ -652,7 +652,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S19 — Charge/Installment + Asaas  ·  \*DIVIDIDA: \[x] S19a (backend: schema + AsaasService + BillingService split server-side) · \[ ] S19b (tela web)\*
+\#### \[x] S19 — Charge/Installment + Asaas  ·  \*DIVIDIDA: \[x] S19a (backend: schema + AsaasService + BillingService split server-side) · \[x] S19b (tela web)\*
 
 \*\*Depende de:\*\* S17
 
@@ -1605,6 +1605,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (114 pass, 2 skip; +7)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub Asaas em `localhost:9090`, ASAAS_API_URL apontado p/ ele): orçamento aprovado (total \*\*29000\*\*) → criar cobrança \*\*PIX 3x\*\* → parcelas \*\*9667/9667/9666 (soma exata, split no servidor)\*\*, vencimentos mensais 07-10/08-10/09-10, cada uma com \*\*pixPayload + asaasPaymentId\*\* do Asaas; re-criar → \*\*409\*\*; token de paciente em `/charges` → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S19b\*\* — tela web: no detalhe do orçamento APROVADO, "Gerar cobrança" (escolher método/nº parcelas/1º vencimento) → ver parcelas + PIX copia-e-cola/boleto; lista de cobranças. api-client +métodos. Herdadas: baixa automática (S20 webhook Asaas), Asaas real, as de sempre.
+
+\- \*\*2026-06-21 · S19b — Cobrança: tela web (FECHA a S19)\*\*
+
+  \- \*O que foi feito:\* UI de cobrança no web. `getBudget` passou a incluir `charge {id,status}`. \*\*api-client:\* +`createCharge`/`getCharge` + tipos `ChargeDetail`/`InstallmentDetail` + `BudgetDetail.charge`.\* No detalhe do orçamento (`budget-detail.tsx`), quando \*\*APPROVED\*\*, seção "Cobrança": se não há → form (método PIX/Boleto/Cartão + nº parcelas + 1º vencimento) → \*\*Server Action `createChargeAction`\*\* (redireciona p/ `/cobrancas/[id]`; trata 503 = Asaas não configurado); se há → link "Ver cobrança". Nova página \*\*`/cobrancas/[id]`\*\* (Server Component): cabeçalho (paciente, método, total) + lista de parcelas (número, vencimento, valor, status) com \*\*PIX copia-e-cola\*\* e linha do boleto (mono, `break-all`).
+
+  \- \*Arquivos tocados:\* `apps/api/src/budget/budget.service.ts` (getBudget +charge), `packages/api-client/src/index.ts` (+2 métodos +tipos), `apps/web/app/orcamentos/{actions.ts,[id]/budget-detail.tsx}`, `apps/web/app/cobrancas/[id]/page.tsx` (novo). Sem migration, sem dep nova.
+
+  \- \*Decisões:\* o front \*\*só escolhe método/parcelas/1º vencimento\*\* — os valores das parcelas vêm calculados do backend (S19a). Página de cobrança separada (`/cobrancas/[id]`) p/ não inchar o detalhe do orçamento. PIX/boleto exibidos como texto copiável (mono); copy-button fica como melhoria.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (114 pass)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright, stub Asaas):\* orçamento aprovado (R$160) → "Gerar cobrança" PIX 2x venc 15/08 → redireciona p/ `/cobrancas/[id]` mostrando \*\*Parcela 1 (15/08, R$80,00, PIX copia-e-cola) + Parcela 2 (15/09, R$80,00)\*\*, ambas Pendente.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S19 COMPLETA.\*\* Próxima no backlog: \*\*S20 — Baixa automática (reconciler)\*\* (`billing/asaas.webhook.controller.ts` valida assinatura; fila `payment-reconciler` idempotente; +`Payment`+`Reconciliation`; webhook de pagamento dá baixa na parcela; reprocesso não dá baixa dupla). Depende de S19. Herdadas: Asaas real, copy-button PIX, lista de cobranças no web, navegação comum web, as de sempre.
 
 
 

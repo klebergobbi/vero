@@ -110,3 +110,35 @@ export async function generateContractAction(budgetId: string): Promise<void> {
   }
   revalidatePath(`/orcamentos/${budgetId}`);
 }
+
+export async function createChargeAction(
+  budgetId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const method = String(formData.get("method") ?? "PIX");
+  const installments = Number(formData.get("installments") ?? "1");
+  const firstDueDate = String(formData.get("firstDueDate") ?? "").trim();
+  if (!firstDueDate) return { error: "Informe o 1º vencimento." };
+  if (!Number.isInteger(installments) || installments < 1) {
+    return { error: "Número de parcelas inválido." };
+  }
+
+  let id: string;
+  try {
+    const api = await serverApi();
+    const charge = await api.createCharge({
+      budgetId,
+      method: method as "PIX" | "BOLETO" | "CARD",
+      installments,
+      firstDueDate,
+    });
+    id = charge.id;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 503) {
+      return { error: "Pagamentos (Asaas) não configurados no servidor." };
+    }
+    return { error: safeError(err, "Não foi possível gerar a cobrança.") };
+  }
+  redirect(`/cobrancas/${id}`);
+}

@@ -110,6 +110,29 @@ export interface BudgetDetail extends BudgetSummary {
   decidedAt: string | null;
   items: BudgetItemDetail[];
   contract: { id: string; status: string } | null;
+  charge: { id: string; status: string } | null;
+}
+
+/** Parcela de uma cobrança (§S19). */
+export interface InstallmentDetail {
+  id: string;
+  number: number;
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  pixPayload: string | null;
+  boletoBarcode: string | null;
+}
+
+/** Cobrança detalhada (com parcelas). */
+export interface ChargeDetail {
+  id: string;
+  patientId: string;
+  totalCents: number;
+  method: string;
+  status: string;
+  patient: { name: string };
+  installments: InstallmentDetail[];
 }
 
 /** Dados do booking público (paciente se identifica como lead). */
@@ -370,6 +393,22 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify({ budgetId }),
         accessToken,
       }),
+
+    /** Gera a cobrança (parcelas) de um orçamento aprovado (§S19). */
+    createCharge: (input: {
+      budgetId: string;
+      method: "PIX" | "BOLETO" | "CARD";
+      installments: number;
+      firstDueDate: string;
+    }): Promise<ChargeDetail> =>
+      request<ChargeDetail>(baseUrl, "/charges", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    getCharge: (id: string): Promise<ChargeDetail> =>
+      request<ChargeDetail>(baseUrl, `/charges/${id}`, { accessToken }),
 
     listAppointments: (
       params: ListAppointmentsParams = {},

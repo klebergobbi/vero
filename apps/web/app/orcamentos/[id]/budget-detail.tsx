@@ -3,9 +3,11 @@
 import { useActionState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import type { BudgetDetail, ProcedureItem } from "@vero/api-client";
+import Link from "next/link";
 import {
   type ActionState,
   addItemAction,
+  createChargeAction,
   generateContractAction,
   removeItemAction,
   setStatusAction,
@@ -56,6 +58,11 @@ export function BudgetDetailView({
   const open = budget.status === "OPEN";
   const addItem = addItemAction.bind(null, budget.id);
   const [state, action] = useActionState<ActionState, FormData>(addItem, {});
+  const createCharge = createChargeAction.bind(null, budget.id);
+  const [chargeState, chargeAction] = useActionState<ActionState, FormData>(
+    createCharge,
+    {},
+  );
   const [pending, start] = useTransition();
 
   return (
@@ -220,6 +227,59 @@ export function BudgetDetailView({
             >
               Gerar contrato
             </button>
+          )}
+        </section>
+      ) : null}
+
+      {budget.status === "APPROVED" ? (
+        <section className="border-t border-slate-100 pt-4">
+          <h2 className="mb-2 text-sm font-medium text-slate-700">Cobrança</h2>
+          {budget.charge ? (
+            <Link
+              href={`/cobrancas/${budget.charge.id}`}
+              className="inline-block rounded-lg border border-vero-500 px-4 py-2 text-sm font-medium text-vero-700 transition hover:bg-vero-50"
+            >
+              Ver cobrança →
+            </Link>
+          ) : (
+            <form
+              action={chargeAction}
+              className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-3"
+            >
+              <select name="method" defaultValue="PIX" className={inputClass}>
+                <option value="PIX">PIX</option>
+                <option value="BOLETO">Boleto</option>
+                <option value="CARD">Cartão</option>
+              </select>
+              <input
+                name="installments"
+                type="number"
+                min="1"
+                max="48"
+                defaultValue="1"
+                placeholder="Parcelas"
+                className={inputClass}
+              />
+              <input
+                name="firstDueDate"
+                type="date"
+                className={inputClass}
+                required
+              />
+              {chargeState.error ? (
+                <p role="alert" className="text-sm text-red-600 sm:col-span-3">
+                  {chargeState.error}
+                </p>
+              ) : null}
+              <div className="sm:col-span-3">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-vero-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-vero-700"
+                >
+                  Gerar cobrança
+                </button>
+              </div>
+            </form>
           )}
         </section>
       ) : null}

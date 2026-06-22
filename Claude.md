@@ -708,7 +708,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S23 — NFS-e
+\#### \[x] S23 — NFS-e
 
 \*\*Depende de:\*\* S20
 
@@ -1653,6 +1653,22 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (127 pass, 2 skip; +8)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (contexto Nest + stub Evolution na 9091 + régua D-3/D0/D+5 semeada): 1ª execução no dia do venc (D0) → \*\*enviou + 1 CollectionEvent\*\*; 2ª execução mesmo dia → \*\*skipped, ainda 1 evento (não reenvia)\*\*; paciente com \*\*opt-out\*\* → \*\*0 eventos\*\* p/ a parcela dele. Script descartável removido.
 
   \- \*Pendências p/ próxima:\* \*\*S22 COMPLETA.\*\* Próxima no backlog: \*\*S23 — NFS-e\*\* (`integrations/nfse/nfse.service.ts` via integrador; fila `nfse-emitter` retry/backoff; +`Invoice`; emitir NFS-e em homologação a partir de um pagamento; falha → DLQ com motivo). Depende de S20. Herdadas: CRUD de régua na web (hoje via seed/script), `cron diário da confirmação D-1` (S12, ainda sem disparador — agora há padrão de cron p/ reusar), Asaas/Evolution reais, as de sempre.
+
+\- \*\*2026-06-22 · S23 — NFS-e (emissão fiscal via integrador + fila)\*\*
+
+  \- \*O que foi feito:\* emissão de nota fiscal a partir de um pagamento. Schema: \*\*`Invoice`\*\* (`paymentId @unique` → 1 NFS-e por pagamento, amountCents, `status` enum `InvoiceStatus` PENDING/ISSUED/FAILED, `externalId`/`number`/`pdfUrl`/`error` = retorno persistido) + migration aditiva. \*\*`NfseService`\*\* (integrations/nfse, proxy §7 espelha Asaas): `emit` POST `${NFSE_API_URL}/nfse` (Bearer, valor em reais convertido dos centavos, customer name/cpf), \*\*anti-SSRF\*\* (URL só da base, bloqueia host interno em prod), timeout 15s, \*\*fail-closed\*\* sem config. `InvoiceService.createForPayment`: valida pagamento owned (anti-IDOR 403), 1 por pagamento (409), cria Invoice PENDING e enfileira (`jobId nfse-{id}`). Fila \*\*`nfse-emitter`\*\* (BullMQ): `NfseEmitterProcessor` emite via integrador, marca \*\*ISSUED\*\* + número/pdf/externalId; \*\*idempotente\*\* (já ISSUED → no-op); falha → \*\*retry/backoff → DLQ + Invoice FAILED com o motivo\*\* (o `error` é gravado em TODA tentativa). `InvoiceController` (POST /invoices, GET /invoices/:id, gated `billing:write/read`). Envs `NFSE_API_URL`/`NFSE_API_KEY` opcionais.
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Invoice +enum +back-relations Tenant/Payment), `apps/api/prisma/migrations/*_s23_invoice/` (aditiva), `apps/api/src/config/env.validation.ts` + `.env.example` (+NFSE_*), `apps/api/src/integrations/nfse/nfse.service.ts` (novo), `apps/api/src/invoice/{invoice.service,invoice.controller,nfse-emitter,invoice.module}.ts` + `invoice/dto/invoice.dto.ts` (novos), `apps/api/src/app.module.ts` (+InvoiceModule), teste `apps/api/test/invoice.service.spec.ts` (3 casos). Sem dep nova. \*Permissions `billing:*` reusadas.\*
+
+  \- \*Decisões:\* `Invoice.paymentId @unique` = idempotência (1 NFS-e por pagamento; re-emitir → 409). Emissão \*\*manual via endpoint\*\* (não auto no reconcile da S20) — explícito; auto-trigger fica como melhoria. PixCharge/Boleto não envolvidos. Proxy fail-closed/anti-SSRF (mesmo padrão Asaas/Evolution) — \*\*sem credenciais reais; validado com stub local\*\* (9092). `error` persistido em toda tentativa (observabilidade), DLQ + FAILED ao esgotar (mesmo mecanismo do push-sender S13b).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (130 pass, 2 skip; +3)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub NFS-e 9092, pagamento da S20): `POST /invoices` → worker emite → \*\*ISSUED, número 2026/2, pdf, externalId\*\* persistidos; \*\*falha\*\* (stub down) → Invoice ficou PENDING com \*\*`error: "fetch failed"` (motivo registrado)\*\*; re-emitir mesmo pagamento → \*\*409\*\*; token de paciente → \*\*403\*\*. \*Nota infra:\* processos `node ... &` morriam por SIGHUP ao sair o shell; reiniciados com `nohup`+`disown`.
+
+  \- \*Pendências p/ próxima:\* \*\*S23 COMPLETA.\*\* Próxima no backlog: \*\*S24 — Recibos\*\* (`receipt/receipt.service.ts` gera PDF de um pagamento; endpoint; upload p/ DO Spaces com URL assinada de expiração curta). Depende de S20. Herdadas: auto-emitir NFS-e no reconcile, CRUD de régua na web, Asaas/Evolution/NFS-e reais, navegação comum web, as de sempre.
+
+
+
+\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
 
 
 

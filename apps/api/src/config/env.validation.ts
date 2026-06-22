@@ -43,6 +43,15 @@ export const envSchema = z.object({
   // Segredo que o webhook do Asaas deve apresentar (header asaas-access-token) —
   // valida a origem (S20). Sem ele, o webhook recusa tudo (fail-closed).
   ASAAS_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  // NFS-e via integrador (PlugNotas/Focus/eNotas) — segredos SÓ no backend (§7/S23).
+  // Opcionais: a API sobe sem elas; emitir falha fechado até estarem configuradas.
+  // NFSE_API_URL nunca recebe input do usuário (anti-SSRF). Use homologação.
+  NFSE_API_URL: z
+    .string()
+    .url("NFSE_API_URL deve ser uma URL válida")
+    .optional(),
+  NFSE_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

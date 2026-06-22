@@ -652,7 +652,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S19 — Charge/Installment + Asaas
+\#### \[ ] S19 — Charge/Installment + Asaas  ·  \*DIVIDIDA: \[x] S19a (backend: schema + AsaasService + BillingService split server-side) · \[ ] S19b (tela web)\*
 
 \*\*Depende de:\*\* S17
 
@@ -1594,9 +1594,17 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
   \- \*Pendências p/ próxima:\* \*\*S18 COMPLETA.\*\* Próxima no backlog: \*\*S19 — Charge/Installment + Asaas\*\* (transformar venda em cobranças PIX/boleto/cartão; `Charge`+`Installment`+`PixCharge`+`Boleto`+`CardTransaction`; `integrations/asaas` proxy backend; aprovar orçamento gera parcelas + cobrança via Asaas sandbox). Herdadas: integração ICP real, página web de verify do contrato p/ equipe, navegação comum web, as de sempre.
 
+\- \*\*2026-06-21 · S19a — Cobrança (Charge/Installment) + Asaas: backend\*\*  ·  \*S19 DIVIDIDA em S19a (esta) + S19b (tela web)\*
 
+  \- \*O que foi feito:\* venda → cobranças. Schema: \*\*`Charge`\*\* (budgetId `@unique` = 1 por orçamento, patientId, `totalCents`, `method` enum `PaymentMethod` PIX/BOLETO/CARD, `status` `ChargeStatus` PENDING/PARTIAL/PAID/CANCELLED, soft-delete) + \*\*`Installment`\*\* (number, `amountCents`, dueDate, `status` `InstallmentStatus`, e os artefatos de pagamento CONSOLIDADOS: `asaasPaymentId`/`pixPayload`/`boletoBarcode` — §6 lista PixCharge/Boleto/CardTransaction separados; uni no Installment p/ o MVP, §8) + migration aditiva. \*\*`AsaasService`\*\* (integrations/asaas, proxy §7 espelhando a Evolution): `createPayment` POST `${ASAAS_API_URL}/payments` (header `access_token`, valor em REAIS convertido dos centavos, billingType por método), \*\*anti-SSRF\*\* (URL só da base, bloqueia host interno em prod), timeout 10s, \*\*fail-closed\*\* sem config; getter `configured`. `BillingService`: `createCharge` valida orçamento \*\*APPROVED\*\* + owned (anti-IDOR), 1 por orçamento (409), \*\*split EXATO no servidor\*\* (`splitCents` — resto distribuído 1c nas primeiras; util puro testável) + vencimentos mensais (`monthlyDueDates`), gera a cobrança Asaas por parcela ANTES de persistir (fail-closed limpo) e cria Charge+Installments em `$transaction`; se Asaas não configurado, gera só as parcelas (warn). `BillingController` (POST /charges, GET /charges, GET /charges/:id, gated `billing:write/read`). Envs `ASAAS_API_URL`/`ASAAS_API_KEY` opcionais (env.validation + .env.example).
 
-\## 12. BIBLIOTECA DE INSTRUÇÕES PRONTAS (colar nos prompts de sessão)
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+Charge +Installment +3 enums +back-relations), `apps/api/prisma/migrations/*_s19_charge/` (aditiva), `apps/api/src/config/env.validation.ts` + `apps/api/.env.example` (+Asaas), `apps/api/src/integrations/asaas/asaas.service.ts` (novo), `apps/api/src/billing/{billing.util,billing.service,billing.controller,billing.module}.ts` + `billing/dto/billing.dto.ts` (novos), `apps/api/src/app.module.ts` (+BillingModule), testes `apps/api/test/{billing.util,billing.service}.spec.ts` (7 casos). Sem dep nova. \*Permissions `billing:*` já existiam — sem re-seed.\*
+
+  \- \*Decisões:\* \*\*split no servidor\*\* (`splitCents` soma exata; §S19 "valores conferidos no servidor") — o front NUNCA manda valor de parcela. PixCharge/Boleto/CardTransaction consolidados em campos do Installment (MVP; separar depois se precisar de histórico por método). Asaas como proxy fail-closed/anti-SSRF (mesmo padrão Evolution/ICP) — \*\*sem credenciais reais; validado com stub local\*\* (como S12). Cobrança Asaas feita ANTES da transação (se falhar, nada persiste). Sem credenciais → gera só as parcelas (resiliente, mas a S19 "via Asaas" exige config).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (114 pass, 2 skip; +7)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stub Asaas em `localhost:9090`, ASAAS_API_URL apontado p/ ele): orçamento aprovado (total \*\*29000\*\*) → criar cobrança \*\*PIX 3x\*\* → parcelas \*\*9667/9667/9666 (soma exata, split no servidor)\*\*, vencimentos mensais 07-10/08-10/09-10, cada uma com \*\*pixPayload + asaasPaymentId\*\* do Asaas; re-criar → \*\*409\*\*; token de paciente em `/charges` → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S19b\*\* — tela web: no detalhe do orçamento APROVADO, "Gerar cobrança" (escolher método/nº parcelas/1º vencimento) → ver parcelas + PIX copia-e-cola/boleto; lista de cobranças. api-client +métodos. Herdadas: baixa automática (S20 webhook Asaas), Asaas real, as de sempre.
 
 
 

@@ -35,6 +35,7 @@ import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { TenantGuard } from "./common/guards/tenant.guard";
 import { validateEnv, type Env } from "./config/env.validation";
 import { HealthModule } from "./health/health.module";
+import { BillingModule } from "./billing/billing.module";
 import { BudgetModule } from "./budget/budget.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
@@ -120,6 +121,7 @@ import { RedisModule } from "./redis/redis.module";
     CatalogModule,
     BudgetModule,
     ContractModule,
+    BillingModule,
     MeModule,
     WhatsAppModule,
     PushModule,

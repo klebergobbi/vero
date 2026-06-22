@@ -44,6 +44,8 @@ model Tenant {
   budgetItems      BudgetItem[]
   contracts        Contract[]
   signatures       Signature[]
+  charges          Charge[]
+  installments     Installment[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -237,6 +239,7 @@ model Patient {
   notifications Notification[]
   budgets      Budget[]
   contracts    Contract[]
+  charges      Charge[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -510,6 +513,7 @@ model Budget {
   plan     Plan?        @relation(fields: [planId], references: [id])
   items    BudgetItem[]
   contract Contract?
+  charge   Charge?
 
   @@index([tenantId])
   @@index([patientId])
@@ -592,5 +596,73 @@ model Signature {
 enum ContractStatus {
   DRAFT
   SIGNED
+  CANCELLED
+}
+
+/// Cobrança de uma venda (§6/S19): transforma o orçamento aprovado em parcelas.
+/// 1 cobrança por orçamento. Valores SEMPRE calculados no servidor (nunca do front).
+model Charge {
+  id         String        @id @default(cuid())
+  tenantId   String
+  budgetId   String        @unique
+  patientId  String
+  totalCents Int
+  method     PaymentMethod
+  status     ChargeStatus  @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  budget       Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  installments Installment[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+/// Parcela de uma cobrança. Os artefatos de pagamento (§6 PixCharge/Boleto/
+/// CardTransaction) ficam consolidados aqui p/ o MVP: `pixPayload` (copia-e-cola),
+/// `boletoBarcode` (linha digitável) e `asaasPaymentId` (id externo, §7 proxy).
+model Installment {
+  id             String            @id @default(cuid())
+  tenantId       String
+  chargeId       String
+  number         Int
+  amountCents    Int
+  dueDate        DateTime
+  status         InstallmentStatus @default(PENDING)
+  asaasPaymentId String?
+  pixPayload     String?
+  boletoBarcode  String?
+  paidAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([chargeId])
+}
+
+enum PaymentMethod {
+  PIX
+  BOLETO
+  CARD
+}
+
+enum ChargeStatus {
+  PENDING
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  PENDING
+  PAID
+  OVERDUE
   CANCELLED
 }

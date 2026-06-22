@@ -31,6 +31,15 @@ export const envSchema = z.object({
   // Push (Expo). Opcional: o Expo aceita envio sem token de acesso; quando presente
   // habilita rate-limit maior/segurança extra (Authorization Bearer). Sem segredo crítico.
   EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
+
+  // Pagamentos Asaas (§7) — segredos SÓ no backend. Opcionais: a API sobe sem elas,
+  // mas gerar cobrança falha fechado até estarem configuradas. ASAAS_API_URL nunca
+  // recebe input do usuário (anti-SSRF). Use a base de sandbox em homologação.
+  ASAAS_API_URL: z
+    .string()
+    .url("ASAAS_API_URL deve ser uma URL válida")
+    .optional(),
+  ASAAS_API_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

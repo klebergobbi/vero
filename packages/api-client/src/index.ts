@@ -156,6 +156,16 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Imagem intraoral do prontuário (§S36). URLs assinadas (full + thumbnail). */
+export interface RecordImage {
+  id: string;
+  filename: string;
+  contentType: string;
+  createdAt: string;
+  url: string;
+  thumbnailUrl: string;
+}
+
 /** Pedido protético — controle de laboratório (§S35). */
 export interface ProstheticOrder {
   id: string;
@@ -638,6 +648,30 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify({ userId }),
         accessToken,
       }),
+
+    // --- Imagens intraorais (§S36, gated record:read|write) ---
+
+    listRecordImages: (patientId: string): Promise<RecordImage[]> =>
+      request<RecordImage[]>(
+        baseUrl,
+        `/records/${encodeURIComponent(patientId)}/images`,
+        { accessToken },
+      ),
+
+    addRecordImage: (
+      patientId: string,
+      input: {
+        filename: string;
+        contentType: string;
+        dataBase64: string;
+        thumbnailBase64?: string;
+      },
+    ): Promise<RecordImage> =>
+      request<RecordImage>(
+        baseUrl,
+        `/records/${encodeURIComponent(patientId)}/images`,
+        { method: "POST", body: JSON.stringify(input), accessToken },
+      ),
 
     // --- Documentos clínicos (§S32, gated record:read|write) ---
 

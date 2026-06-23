@@ -878,7 +878,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S36 — Câmera intraoral / Image2Doc  ·  \*DIVIDIDA: \[x] S36a (backend: ImageService + thumbnail + URL assinada) · \[ ] S36b (captura/upload no web)\*
+\#### \[x] S36 — Câmera intraoral / Image2Doc  ·  \*DIVIDIDA: \[x] S36a (backend: ImageService + thumbnail + URL assinada) · \[x] S36b (captura/upload no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1917,6 +1917,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (193 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): anexar imagem (PNG + thumb "mini") → devolve `url`/`thumbnailUrl`; \*\*servir THUMB sem auth → 200 image/png, decifra "mini"\*\*; \*\*servir FULL sem auth → 200, bytes começam com `\\x89PNG`\*\*; galeria → 2 imagens com url+thumb; \*\*cifra em repouso\*\* confirmada (`dataEnc` é base64 da cifra, sem "IHDR" do PNG cru); token adulterado → \*\*404\*\*; anti-IDOR paciente alheio → \*\*403\*\*; não-imagem → \*\*400\*\*; \*\*SENSITIVE_READ auditado\*\* (4 acessos).
 
   \- \*Pendências p/ próxima:\* \*\*S36b\*\* — captura no web: página `/imagens/[patientId]` com \*\*captura via câmera\*\* (`getUserMedia` + `<video>` + canvas → full + thumb base64) E upload de arquivo (Image→canvas→thumb); POST p/ `/records/:patientId/images`; galeria de thumbnails clicáveis (abre a imagem cheia pela URL assinada). api-client +métodos. \*Nota:\* `getUserMedia` exige device/permissão (validação da captura real é do usuário; o upload de arquivo é testável). Herdadas: upload real ao DO Spaces, geração de thumbnail server-side se algum client não a enviar, navegação comum web, as de sempre.
+
+\- \*\*2026-06-23 · S36b — Câmera intraoral: captura/upload no web (FECHA a S36 e a FASE 3)\*\*
+
+  \- \*O que foi feito:\* UI de imagens intraorais. \*\*api-client:\* +`listRecordImages(patientId)`/`addRecordImage(patientId, input)` + tipo `RecordImage` (url + thumbnailUrl).\* Página \*\*`/imagens/[patientId]`\*\* (Server Component, lista a galeria; \*\*torna as URLs assinadas absolutas\*\* — `apiBaseUrl`+path, pois `/records/images/:token` é `@Public`) + `image-capture.tsx` (client): \*\*captura via câmera\*\* (`getUserMedia` → `<video>` → "Capturar" desenha o frame em canvas → \*\*full + thumbnail base64\*\*) E \*\*"Anexar arquivo"\*\* (lê o file → `Image` → canvas → full+thumb); POST via Server Action; \*\*galeria de thumbnails\*\* clicáveis (abre a imagem cheia pela URL assinada em nova aba). A \*\*miniatura é gerada no canvas\*\* (full ≤1280px, thumb ≤240px) — sem dep server-side.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (2 métodos + 1 tipo), `apps/web/app/imagens/[patientId]/{page.tsx,actions.ts,image-capture.tsx}` (novos). Sem backend novo (consome S36a), sem migration.
+
+  \- \*Decisões:\* thumbnail/full gerados no \*\*canvas do browser\*\* (não no servidor) — confirma a decisão da S36a. URLs assinadas \*\*absolutas\*\* (a tag `<img src>` carrega direto da API `@Public`). Captura por câmera + upload de arquivo no mesmo componente. Página standalone `/imagens/[patientId]` (navegação comum web segue pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/imagens/demo-patient` → \*\*"Anexar arquivo"\*\* (PNG 8×8) → o client gera full+thumb no canvas e envia → \*\*galeria cresceu 2→3\*\*; o `src` da thumb aponta p/ `/records/images/...` (URL assinada) e \*\*o curl provou que a thumb nova é um PNG válido (200 image/png, `\\x89PNG`)\*\*. \*A captura por câmera (`getUserMedia`) exige device/permissão — validação real é do usuário; o thumbnail renderiza em browser real (no headless aparece como alt-text por timing cross-origin + a thumb "mini" semeada na S36a é inválida de propósito).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S36 COMPLETA — FECHA a FASE 3 (clínico avançado, S29–S36).\*\* Próxima no backlog: \*\*FASE 4 — S37 (Contas a pagar/receber)\*\* (`Account` tipo/vencimento/status; `finance/account.service.ts`; lançar conta a pagar/receber + baixa manual). Depende de S20. Herdadas: captura por câmera em device (usuário), upload real ao DO Spaces, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos/crc/protese/imagens), `Professional.specialties`, geração automática no CRC, cron de atraso protético, integrações reais, `MessageLog`, as de sempre.
 
 
 

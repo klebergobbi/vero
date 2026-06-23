@@ -854,7 +854,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S34 — CRC (Central de Relacionamento)
+\#### \[ ] S34 — CRC (Central de Relacionamento)  ·  \*DIVIDIDA: \[x] S34a (backend: CRCTask + serviço + sync ReturnAlert) · \[ ] S34b (tela web lista priorizada)\*
 
 \*\*Depende de:\*\* S33
 
@@ -1857,6 +1857,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (177 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real + \*\*stub Evolution\*\* na 9091): agendar retorno vencido (`dueDate` no passado) → SCHEDULED; agendar futuro (`intervalDays:180`) → due 6 meses à frente; listar SCHEDULED=2; create sem due/interval → \*\*400\*\*; anti-IDOR outro tenant → \*\*403\*\*. \*\*`runDueAlerts` via contexto Nest real:\* RUN1 = `{triggered:1,sent:1}` (stub recebeu 1 `sendText` "Olá, Paciente Demo! Está na hora do seu retorno…"); RUN2 = `{triggered:0}` (IDEMPOTENTE, sem reenvio); com \*\*opt-out\*\* ligado → `{triggered:0}` e o alerta segue SCHEDULED (RESPEITA opt-out).\* Ambiente/stub derrubados; script descartável removido.
 
   \- \*Pendências p/ próxima:\* \*\*S33 COMPLETA.\*\* Próxima no backlog: \*\*S34 — CRC (Central de Relacionamento)\*\* (`CRCTask`; `crc/{module,service,controller}.ts`; tela web lista priorizada de contatos do dia: retorno/pós-venda/reativação/aniversário, marcar-como-feito + atribuição). Depende de S33. \*Nota:\* a S34 pode \*\*consumir os `ReturnAlert` TRIGGERED\*\* como fonte de tarefas. Herdadas: auto-trigger do retorno no fim da consulta (status Appointment), `MessageLog`, ICP qualificada real, navegação comum web, `Professional.specialties`, upload real ao Spaces, integrações reais, as de sempre.
+
+\- \*\*2026-06-23 · S34a — CRC (Central de Relacionamento): backend\*\*  ·  \*S34 DIVIDIDA em S34a (esta) + S34b (tela web)\*
+
+  \- \*O que foi feito:\* fila priorizada de tarefas de relacionamento. Schema: \*\*`CRCTask`\*\* (patientId, `type` RETURN/POST_SALE/REACTIVATION/BIRTHDAY/OTHER, `status` OPEN/DONE/CANCELLED, `priority` Int, `dueDate?`, `notes?`, `assignedToId?` profissional, \*\*`sourceAlertId @unique`\*\* = dedupe quando nasce de ReturnAlert, `doneAt?`) + 2 enums + back-relations (Tenant/Patient/User`CRCAssignee`/ReturnAlert 1:1) + migration aditiva. `CrcService` tenant-scoped (anti-IDOR `ensureOwned`): `create` (manual; prioridade padrão por tipo se não informada), \*\*`syncReturnAlerts`\*\* (importa os `ReturnAlert` TRIGGERED ainda \*\*sem tarefa\*\* (`crcTask: null`) → tarefas RETURN; idempotente por `sourceAlertId @unique`, P2002→skip), `list` (\*\*priorizada\*\*: priority desc → dueDate asc → createdAt), `markDone` (DONE+doneAt), `assign` (valida o User no tenant; userId null = desatribuir). `CrcController` em `/crc/tasks` (`appointment:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`CRCTask` +2 enums +back-relations +`ReturnAlert.crcTask`) + migration `s34_crc_task` (aditiva), `apps/api/src/crc/{crc.service,crc.controller,crc.module}.ts` + `dto/crc.dto.ts` (novos), `apps/api/src/app.module.ts` (+CrcModule), teste `apps/api/test/crc.service.spec.ts` (6 casos). Sem dep nova.
+
+  \- \*Decisões:\* a tarefa de RETORNO \*\*consome o `ReturnAlert` TRIGGERED da S33\*\* via `sync` (1:1 `sourceAlertId @unique`) — integra as duas sessões. Geração automática de BIRTHDAY/REACTIVATION fica p/ futuro (os tipos existem; hoje manuais). Permissões reusam \*\*`appointment:*`\*\* (recepção/relacionamento — sem re-seed). Prioridade default por tipo (RETURN 10 > REACTIVATION 8 > POST_SALE 6 > BIRTHDAY 5 > OTHER 1). \*Nota Prisma:\* o model `CRCTask` vira `prisma.cRCTask` (camelCase do nome em CAPS).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (183 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 ReturnAlert TRIGGERED da S33): \*\*sync\*\* → created 1 (virou tarefa RETURN); \*\*sync de novo → created 0\*\* (idempotente); criar BIRTHDAY manual → priority 5/OPEN; \*\*lista priorizada\*\* → RETURN(10) antes de BIRTHDAY(5); \*\*atribuir\*\* a profissional → assignedTo "Revisor Demo"; \*\*desatribuir\*\* (null) → None; responsável inválido → \*\*400\*\*; \*\*marcar feito\*\* → DONE+doneAt, some da lista OPEN (DONE=1); anti-IDOR tarefa alheia → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S34b\*\* — tela web `/crc` (lista priorizada de contatos do dia: tipo + paciente + telefone + responsável; botões "Sincronizar retornos", "Marcar feito", seletor de responsável; criar tarefa manual). api-client +métodos. Herdadas: geração automática de aniversário/reativação, auto-trigger do retorno no fim da consulta, navegação comum web, `Professional.specialties`, as de sempre.
 
 
 

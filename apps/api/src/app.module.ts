@@ -43,6 +43,7 @@ import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
 import { AlignerModule } from "./aligner/aligner.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
+import { CrcModule } from "./crc/crc.module";
 import { DocumentModule } from "./document/document.module";
 import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
@@ -146,6 +147,7 @@ import { RedisModule } from "./redis/redis.module";
     AlignerModule,
     DocumentModule,
     ReturnModule,
+    CrcModule,
     MeModule,
     WhatsAppModule,
     PushModule,

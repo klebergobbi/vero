@@ -68,6 +68,7 @@ model Tenant {
   alignerSteps     AlignerStep[]
   clinicalDocuments ClinicalDocument[]
   returnAlerts     ReturnAlert[]
+  crcTasks         CRCTask[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -133,6 +134,7 @@ model User {
   specialtyForms SpecialtyForm[] @relation("SpecialtyAuthor")
   executions     ExecutionLog[] @relation("ExecutionPerformer")
   signedDocuments ClinicalDocument[] @relation("DocumentSigner")
+  assignedCrcTasks CRCTask[] @relation("CRCAssignee")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -277,6 +279,7 @@ model Patient {
   alignerCases AlignerCase[]
   clinicalDocuments ClinicalDocument[]
   returnAlerts ReturnAlert[]
+  crcTasks     CRCTask[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -1212,8 +1215,9 @@ model ReturnAlert {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  patient Patient @relation(fields: [patientId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient  @relation(fields: [patientId], references: [id])
+  crcTask CRCTask?
 
   @@index([tenantId])
   @@index([patientId])
@@ -1223,6 +1227,48 @@ model ReturnAlert {
 enum ReturnAlertStatus {
   SCHEDULED
   TRIGGERED
+  DONE
+  CANCELLED
+}
+
+/// Tarefa da Central de Relacionamento (§6/S34): fila priorizada de contatos do
+/// dia (retorno, pós-venda, reativação, aniversário). `sourceAlertId @unique` =
+/// dedupe quando a tarefa nasce de um ReturnAlert TRIGGERED (S33). `assignedToId`
+/// = profissional responsável; `priority` maior = mais urgente.
+model CRCTask {
+  id            String        @id @default(cuid())
+  tenantId      String
+  patientId     String
+  type          CRCTaskType
+  status        CRCTaskStatus @default(OPEN)
+  priority      Int           @default(0)
+  dueDate       DateTime?
+  notes         String?
+  assignedToId  String?
+  sourceAlertId String?       @unique
+  doneAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  assignedTo  User?        @relation("CRCAssignee", fields: [assignedToId], references: [id])
+  sourceAlert ReturnAlert? @relation(fields: [sourceAlertId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum CRCTaskType {
+  RETURN
+  POST_SALE
+  REACTIVATION
+  BIRTHDAY
+  OTHER
+}
+
+enum CRCTaskStatus {
+  OPEN
   DONE
   CANCELLED
 }

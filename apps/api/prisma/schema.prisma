@@ -918,6 +918,8 @@ model Attachment {
   filename    String
   contentType String
   dataEnc     Bytes
+  /// miniatura CIFRADA (§S36, imagens intraorais). null em anexos não-imagem.
+  thumbnailEnc Bytes?
   createdAt   DateTime @default(now())
 
   tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)

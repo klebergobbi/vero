@@ -878,7 +878,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S36 — Câmera intraoral / Image2Doc
+\#### \[ ] S36 — Câmera intraoral / Image2Doc  ·  \*DIVIDIDA: \[x] S36a (backend: ImageService + thumbnail + URL assinada) · \[ ] S36b (captura/upload no web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1905,6 +1905,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/protese` → registrar pedido → \*\*"Solicitado"\*\* → \*\*"Enviar ao lab" com prazo vencido (2026-06-10)\*\* → card vira \*\*"No laboratório" + badge "Atrasado" (borda vermelha)\*\* → "Marcar recebido" → "Recebido" (screenshot: pedido atrasado destacado + pedido recebido em verde).\*
 
   \- \*Pendências p/ próxima:\* \*\*S35 COMPLETA.\*\* Próxima no backlog: \*\*S36 — Câmera intraoral / Image2Doc\*\* (`record/image.service.ts` upload Spaces + URL assinada; integração de captura no web; anexo ao prontuário com thumbnail). Depende de S26. \*Nota:\* a S26 já tem `addAttachment`/`serveAttachment` cifrado + URL assinada — a S36 pode reusar/estender p/ captura de imagem intraoral. Herdadas: cron de alerta proativo de atraso protético, geração automática no CRC, auto-trigger do retorno, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos/crc/protese), `Professional.specialties`, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S36a — Câmera intraoral / Image2Doc: backend\*\*  ·  \*S36 DIVIDIDA em S36a (esta) + S36b (captura/upload no web); FECHA o backend da FASE 3\*
+
+  \- \*O que foi feito:\* anexar imagem intraoral ao prontuário com miniatura. Schema: `Attachment` +`thumbnailEnc Bytes?` (miniatura CIFRADA; null em anexos não-imagem) + migration aditiva. \*\*`ImageService`\*\* (record/image.service.ts) reusa a infra da S26 (CryptoService AES-256-GCM + AuditService): `addImage` (valida `image/*` → 400; cifra a imagem CHEIA \*\*E\*\* a MINIATURA em repouso; anti-IDOR `ensureOwned`; cria `Attachment`), `listImages` (galeria de imagens do prontuário com URLs assinadas + \*\*SENSITIVE_READ\*\*), `serveImage` (valida token assinado → decifra a \*\*variante\*\* full|thumb → audita). \*\*URL assinada\*\* HMAC+exp 5min com \*\*variante no token\*\* (`{id}.{full|thumb}.{exp}.{sig}`). \*\*Thumbnail gerada no CLIENT\*\* (canvas) — sem dep de imagem nativa no servidor (§8). `ImageController` (`record:read|write`): `POST /records/:patientId/images`, `GET /records/:patientId/images` (galeria), `GET /records/images/:token` (`@Public`, stream).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`Attachment.thumbnailEnc`) + migration `s36_attachment_thumbnail` (aditiva), `apps/api/src/record/{image.service,image.controller}.ts` + `record/dto/image.dto.ts` (novos), `apps/api/src/record/record.module.ts` (+ImageService/ImageController), teste `apps/api/test/image.service.spec.ts` (5 casos). Sem dep nova (reusa Crypto/Audit; thumbnail no client).
+
+  \- \*Decisões:\* \*\*miniatura gerada no client (canvas)\*\* e enviada junto (full + thumb base64) — evita `sharp`/`jimp` (dep nativa/pesada) no servidor, mantém o thumbnail REAL (§8 simplicidade). Reusa o `Attachment` cifrado da S26 (não cria modelo novo de imagem). Variante no token assinado (full|thumb) → uma rota serve as duas. Upload p/ \*\*DO Spaces\*\* = troca de produção (hoje bytes cifrados no DB, como S26/S24). Sem miniatura do client → fallback usa a imagem cheia.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (193 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): anexar imagem (PNG + thumb "mini") → devolve `url`/`thumbnailUrl`; \*\*servir THUMB sem auth → 200 image/png, decifra "mini"\*\*; \*\*servir FULL sem auth → 200, bytes começam com `\\x89PNG`\*\*; galeria → 2 imagens com url+thumb; \*\*cifra em repouso\*\* confirmada (`dataEnc` é base64 da cifra, sem "IHDR" do PNG cru); token adulterado → \*\*404\*\*; anti-IDOR paciente alheio → \*\*403\*\*; não-imagem → \*\*400\*\*; \*\*SENSITIVE_READ auditado\*\* (4 acessos).
+
+  \- \*Pendências p/ próxima:\* \*\*S36b\*\* — captura no web: página `/imagens/[patientId]` com \*\*captura via câmera\*\* (`getUserMedia` + `<video>` + canvas → full + thumb base64) E upload de arquivo (Image→canvas→thumb); POST p/ `/records/:patientId/images`; galeria de thumbnails clicáveis (abre a imagem cheia pela URL assinada). api-client +métodos. \*Nota:\* `getUserMedia` exige device/permissão (validação da captura real é do usuário; o upload de arquivo é testável). Herdadas: upload real ao DO Spaces, geração de thumbnail server-side se algum client não a enviar, navegação comum web, as de sempre.
 
 
 

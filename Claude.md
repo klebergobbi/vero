@@ -866,7 +866,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S35 — Controle protético
+\#### \[ ] S35 — Controle protético  ·  \*DIVIDIDA: \[x] S35a (backend: ProstheticOrder + serviço + atraso) · \[ ] S35b (tela web)\*
 
 \*\*Depende de:\*\* S30
 
@@ -1881,6 +1881,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* semeado 1 ReturnAlert TRIGGERED → `/crc` → \*\*"Sincronizar retornos"\*\* → "importada" + card badge \*\*"Retorno"\*\* → \*\*"Marcar feito"\*\* no 1º card → \*\*Contatos do dia caiu de 2 p/ 1\*\* (restou a tarefa "Aniversário" do Paciente Demo, "Parabenizar", "Sem responsável") — screenshot confirma a tela (form de nova tarefa + lista priorizada + seletor de responsável).\*
 
   \- \*Pendências p/ próxima:\* \*\*S34 COMPLETA.\*\* Próxima no backlog: \*\*S35 — Controle protético\*\* (`ProstheticOrder`; `prosthetic/service.ts`; rastrear envio/retorno de laboratório com prazos e status; alerta de atraso; vínculo ao tratamento). Depende de S30. Herdadas: geração automática de aniversário/reativação no CRC, auto-trigger do retorno no fim da consulta, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos/crc), `Professional.specialties`, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S35a — Controle protético: backend\*\*  ·  \*S35 DIVIDIDA em S35a (esta) + S35b (tela web)\*
+
+  \- \*O que foi feito:\* rastreio de envio/retorno de laboratório. Schema: \*\*`ProstheticOrder`\*\* (patientId, `treatmentItemId?` vínculo ao plano S30, labName, description, `status` REQUESTED/SENT/RECEIVED/CANCELLED, `sentAt?`, `expectedReturnDate?` prazo, `receivedAt?`, notes?) + enum + back-relations (Tenant/Patient/TreatmentItem) + migration aditiva. `ProstheticService` tenant-scoped (anti-IDOR `ensureOwned`): `create` (REQUESTED; valida `treatmentItemId` no tenant se informado → 400), `list` (com flag de \*\*atraso\*\*), `markSent` (status SENT + `sentAt` + prazo; já finalizado → 409), `markReceived` (RECEIVED + `receivedAt`), `cancel`. \*\*ALERTA DE ATRASO\*\* calculado na leitura (`withLate`): `isLate = SENT && expectedReturnDate < agora && !receivedAt`. `ProstheticController` em `/prosthetic/orders` (`record:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`ProstheticOrder` +enum +back-relations) + migration `s35_prosthetic_order` (aditiva), `apps/api/src/prosthetic/{prosthetic.service,prosthetic.controller,prosthetic.module}.ts` + `dto/prosthetic.dto.ts` (novos), `apps/api/src/app.module.ts` (+ProstheticModule), teste `apps/api/test/prosthetic.service.spec.ts` (5 casos). Sem dep nova.
+
+  \- \*Decisões:\* \*\*atraso calculado na leitura\*\* (não um cron/campo persistido) — simples e sempre correto; um cron de alerta proativo (WhatsApp ao laboratório/clínica) fica p/ futuro. Permissões reusam \*\*`record:*`\*\* (trabalho clínico/laboratorial — sem re-seed). `treatmentItemId` opcional valida posse via `TreatmentItem` do tenant. Select extraído em const de módulo `ORDER_SELECT` (fonte única do select + do tipo `OrderRow`, evita auto-referência de tipo na classe).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (188 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): registrar → \*\*REQUESTED, isLate false\*\*; enviar c/ prazo vencido (2026-06-10) → \*\*SENT, sentAt set, isLate TRUE\*\*; lista SENT → \*\*"ATRASADO"\*\*; receber → \*\*RECEIVED, receivedAt set, isLate false\*\*; \*\*vínculo ao tratamento\*\* (treatmentItemId set) OK; item de tratamento inválido → \*\*400\*\*; anti-IDOR paciente alheio → \*\*403\*\*; `send` em pedido RECEIVED → \*\*409\*\*; anti-IDOR pedido alheio → \*\*403\*\*. \*Lembrete:\* a validação do DTO (labName/description MinLength 2) roda ANTES do service — um campo curto dá 400 de validação, não chega ao anti-IDOR.
+
+  \- \*Pendências p/ próxima:\* \*\*S35b\*\* — tela web `/protese` (registrar pedido: paciente + laboratório + descrição + prazo; lista com status e \*\*destaque dos atrasados\*\*; botões Enviar/Receber/Cancelar). api-client +métodos. Herdadas: cron de alerta proativo de atraso, geração automática no CRC, navegação comum web, `Professional.specialties`, as de sempre.
 
 
 

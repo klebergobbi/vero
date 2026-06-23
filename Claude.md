@@ -894,7 +894,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S37 — Contas a pagar/receber  ·  \*DIVIDIDA: \[x] S37a (backend: Account + serviço + baixa manual) · \[ ] S37b (telas web)\*
+\#### \[x] S37 — Contas a pagar/receber  ·  \*DIVIDIDA: \[x] S37a (backend: Account + serviço + baixa manual) · \[x] S37b (telas web)\*
 
 \*\*Depende de:\*\* S20
 
@@ -1941,6 +1941,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (198 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): lançar a PAGAR vencida → \*\*OPEN, isOverdue TRUE, R$2500\*\*; a RECEBER futura → isOverdue false; \*\*summary\*\* → a pagar 2500 / a receber 1200; lista PAYABLE → \*\*"ATRASADO"\*\*; \*\*baixa manual\*\* → \*\*PAID + paidAt\*\*; baixar já paga → \*\*409\*\*; anti-IDOR conta alheia → \*\*403\*\*; amount 0 → \*\*400\*\*. \*\*INCIDENTE de ambiente:\* o symlink `apps/api/node_modules/@nestjs/bullmq` ficou DANGLING (a entrada no `.pnpm` sumiu — algum estado divergente do store) e a API não subia ("Cannot find module @nestjs/bullmq"); corrigido com `pnpm install --frozen-lockfile` (não mexe no lockfile) + `prisma generate` (o reinstall reseta o @prisma/client). Lição: após erro "Cannot find module" de dep existente no package.json, reinstalar frozen + regenerar prisma.\*
 
   \- \*Pendências p/ próxima:\* \*\*S37b\*\* — tela web `/financeiro` (lançar conta a pagar/receber: tipo + descrição + categoria + valor + vencimento; lista com atrasados destacados + totais em aberto; botões "Dar baixa"/"Cancelar"). api-client +métodos. Herdadas: conciliação das contas com pagamentos (S38 fluxo de caixa), as de sempre.
+
+\- \*\*2026-06-23 · S37b — Contas a pagar/receber: tela web (FECHA a S37)\*\*
+
+  \- \*O que foi feito:\* UI do financeiro da clínica. \*\*api-client:\* +`listAccounts({type?,status?})`/`accountsSummary()`/`createAccount(input)`/`payAccount(id)`/`cancelAccount(id)` + tipos `Account`/`AccountSummary`.\* Página \*\*`/financeiro`\*\* (Server Component, lista + summary) + `accounts-list.tsx` (client): \*\*cards de totais em aberto\*\* (A pagar vermelho / A receber verde); form \*\*"Novo lançamento"\*\* (tipo A pagar/A receber + categoria + descrição + valor R$ + vencimento → Lançar); lista de lançamentos com \*\*atrasados destacados (borda vermelha)\*\*, valor colorido por tipo, status; botões \*\*"Dar baixa"\*\* (baixa manual) e "Cancelar" só em OPEN. Cada ação devolve lista + summary atualizados.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 2 tipos), `apps/web/app/financeiro/{page.tsx,actions.ts,accounts-list.tsx}` (novos). Sem backend novo (consome S37a), sem migration.
+
+  \- \*Decisões:\* valor em \*\*reais no input → centavos\*\* (parseFloat com vírgula→ponto × 100). Cards de summary no topo (visão rápida de caixa). Atrasados com borda vermelha (como protético S35). Página standalone `/financeiro` (navegação comum web segue pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/financeiro` → cards "A pagar (aberto)"/"A receber (aberto)" → lançar "Compra de resina · Material · R$ 350,50" (a pagar, venc 10/07) → aparece na lista → \*\*"Dar baixa" → "Pago"\*\* (sumiu dos botões); o "A receber" segue "Em aberto" com Dar baixa/Cancelar (screenshot). \*Nota:\* o `toLocaleString` BRL usa espaço não-quebrável (`R$\\u00a0350,50`) — um assert por "R$ 350,50" com espaço normal dá falso-negativo; o screenshot confirma o valor.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S37 COMPLETA.\*\* Próxima no backlog: \*\*S38 — Fluxo de caixa + conciliação\*\* (`CashFlow`/`BankReconciliation`; `finance/cashflow.service.ts`; visão diária/mensal de caixa; conciliar lançamento com pagamento — auto da S20 + manual). Depende de S37+S20. Herdadas: navegação comum web (agenda/.../financeiro), conciliação das contas com pagamentos S20, `Professional.specialties`, as de sempre.
 
 
 

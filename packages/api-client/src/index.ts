@@ -156,6 +156,25 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Conta a pagar/receber da clínica (§S37). */
+export interface Account {
+  id: string;
+  type: string;
+  description: string;
+  category: string;
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  isOverdue: boolean;
+}
+export interface AccountSummary {
+  payableOpenCents: number;
+  receivableOpenCents: number;
+}
+
 /** Imagem intraoral do prontuário (§S36). URLs assinadas (full + thumbnail). */
 export interface RecordImage {
   id: string;
@@ -646,6 +665,48 @@ export function createApiClient(opts: ApiClientOptions) {
       request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
         method: "PATCH",
         body: JSON.stringify({ userId }),
+        accessToken,
+      }),
+
+    // --- Contas a pagar/receber (§S37, gated billing:read|write) ---
+
+    listAccounts: (params?: {
+      type?: string;
+      status?: string;
+    }): Promise<Account[]> => {
+      const qs = new URLSearchParams();
+      if (params?.type) qs.set("type", params.type);
+      if (params?.status) qs.set("status", params.status);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<Account[]>(baseUrl, `/accounts${suffix}`, { accessToken });
+    },
+
+    accountsSummary: (): Promise<AccountSummary> =>
+      request<AccountSummary>(baseUrl, "/accounts/summary", { accessToken }),
+
+    createAccount: (input: {
+      type: string;
+      description: string;
+      category: string;
+      amountCents: number;
+      dueDate: string;
+      notes?: string;
+    }): Promise<Account> =>
+      request<Account>(baseUrl, "/accounts", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    payAccount: (id: string): Promise<Account> =>
+      request<Account>(baseUrl, `/accounts/${id}/pay`, {
+        method: "PATCH",
+        accessToken,
+      }),
+
+    cancelAccount: (id: string): Promise<Account> =>
+      request<Account>(baseUrl, `/accounts/${id}/cancel`, {
+        method: "PATCH",
         accessToken,
       }),
 

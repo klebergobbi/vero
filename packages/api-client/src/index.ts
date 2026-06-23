@@ -156,6 +156,23 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Pedido protético — controle de laboratório (§S35). */
+export interface ProstheticOrder {
+  id: string;
+  patientId: string;
+  treatmentItemId: string | null;
+  labName: string;
+  description: string;
+  status: string;
+  sentAt: string | null;
+  expectedReturnDate: string | null;
+  receivedAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  patient: { name: string };
+  isLate: boolean;
+}
+
 /** Tarefa da Central de Relacionamento (§S34). */
 export interface CrcTask {
   id: string;
@@ -537,6 +554,51 @@ export function createApiClient(opts: ApiClientOptions) {
         `/treatment/items/${itemId}/execute`,
         { method: "POST", body: JSON.stringify(input), accessToken },
       ),
+
+    // --- Controle protético (§S35, gated record:read|write) ---
+
+    listProstheticOrders: (status?: string): Promise<ProstheticOrder[]> =>
+      request<ProstheticOrder[]>(
+        baseUrl,
+        `/prosthetic/orders${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+        { accessToken },
+      ),
+
+    createProstheticOrder: (input: {
+      patientId: string;
+      labName: string;
+      description: string;
+      treatmentItemId?: string;
+      expectedReturnDate?: string;
+      notes?: string;
+    }): Promise<ProstheticOrder> =>
+      request<ProstheticOrder>(baseUrl, "/prosthetic/orders", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    sendProstheticOrder: (
+      id: string,
+      expectedReturnDate?: string,
+    ): Promise<ProstheticOrder> =>
+      request<ProstheticOrder>(baseUrl, `/prosthetic/orders/${id}/send`, {
+        method: "PATCH",
+        body: JSON.stringify(expectedReturnDate ? { expectedReturnDate } : {}),
+        accessToken,
+      }),
+
+    receiveProstheticOrder: (id: string): Promise<ProstheticOrder> =>
+      request<ProstheticOrder>(baseUrl, `/prosthetic/orders/${id}/receive`, {
+        method: "PATCH",
+        accessToken,
+      }),
+
+    cancelProstheticOrder: (id: string): Promise<ProstheticOrder> =>
+      request<ProstheticOrder>(baseUrl, `/prosthetic/orders/${id}/cancel`, {
+        method: "PATCH",
+        accessToken,
+      }),
 
     // --- CRC (§S34, gated appointment:read|write) ---
 

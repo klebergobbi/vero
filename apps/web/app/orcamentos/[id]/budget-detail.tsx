@@ -9,6 +9,7 @@ import {
   addItemAction,
   createChargeAction,
   generateContractAction,
+  generatePlanAction,
   removeItemAction,
   setStatusAction,
 } from "../actions";
@@ -280,6 +281,35 @@ export function BudgetDetailView({
                 </button>
               </div>
             </form>
+          )}
+        </section>
+      ) : null}
+
+      {budget.status === "APPROVED" ? (
+        <section className="border-t border-slate-100 pt-4">
+          <h2 className="mb-2 text-sm font-medium text-slate-700">
+            Plano de tratamento
+          </h2>
+          {budget.treatmentPlan ? (
+            <Link
+              href={`/planos/${budget.treatmentPlan.id}`}
+              className="inline-block rounded-lg border border-vero-500 px-4 py-2 text-sm font-medium text-vero-700 transition hover:bg-vero-50"
+            >
+              Ver plano →
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(() => {
+                  void generatePlanAction(budget.id);
+                })
+              }
+              className="rounded-lg bg-vero-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-vero-700 disabled:opacity-60"
+            >
+              Gerar plano
+            </button>
           )}
         </section>
       ) : null}

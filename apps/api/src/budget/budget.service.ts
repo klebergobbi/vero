@@ -54,6 +54,7 @@ export class BudgetService {
         items: { orderBy: { createdAt: "asc" } },
         contract: { select: { id: true, status: true } },
         charge: { select: { id: true, status: true } },
+        treatmentPlan: { select: { id: true, status: true } },
       },
     });
     return scope.ensureOwned(budget);

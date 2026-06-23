@@ -111,6 +111,19 @@ export async function generateContractAction(budgetId: string): Promise<void> {
   revalidatePath(`/orcamentos/${budgetId}`);
 }
 
+export async function generatePlanAction(budgetId: string): Promise<void> {
+  let planId: string | null = null;
+  try {
+    const api = await serverApi();
+    const plan = await api.generateTreatmentPlan(budgetId);
+    planId = plan.id;
+  } catch {
+    // fail-soft: a tela recarrega; se já existir, o link aparece
+  }
+  if (planId) redirect(`/planos/${planId}`);
+  revalidatePath(`/orcamentos/${budgetId}`);
+}
+
 export async function createChargeAction(
   budgetId: string,
   _prev: ActionState,

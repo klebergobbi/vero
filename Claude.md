@@ -804,7 +804,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S30 — Plano de tratamento + execução  ·  \*DIVIDIDA: \[x] S30a (backend: schema + serviço gerar/executar) · \[ ] S30b (telas web)\*
+\#### \[x] S30 — Plano de tratamento + execução  ·  \*DIVIDIDA: \[x] S30a (backend: schema + serviço gerar/executar) · \[x] S30b (telas web)\*
 
 \*\*Depende de:\*\* S17, S26
 
@@ -1785,6 +1785,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (161 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; orçamento demo aprovado com item 2x): gerar plano → \*\*ACTIVE, item PENDING 0/2\*\*; re-gerar → \*\*409\*\*; executar 1/2 → \*\*IN_PROGRESS\*\*; executar 2/2 → \*\*item DONE + plano COMPLETED\*\*; executar concluído → \*\*409\*\*; anti-IDOR plano alheio → \*\*403\*\*. No banco: 2 `ExecutionLog` com data + profissional ("Revisor Demo"). \*Aprendizado:\* a rota de status do orçamento é `PATCH /budgets/:id/status` (não POST).
 
   \- \*Pendências p/ próxima:\* \*\*S30b\*\* — telas web: gerar plano a partir do detalhe do orçamento aprovado (botão), página do plano (`/planos/[id]` ou aba) listando itens com progresso (doneCount/quantity) e botão "Registrar sessão" por item (chama `execute`), mostra histórico de execuções (data/profissional). api-client +métodos. Herdadas: vincular execução a `Appointment`, `Professional.specialties`, tela web do prontuário (só API), navegação comum web, as de sempre.
+
+\- \*\*2026-06-22 · S30b — Plano de tratamento: telas web (FECHA a S30)\*\*
+
+  \- \*O que foi feito:\* UI do plano de tratamento. `getBudget` passou a incluir `treatmentPlan {id,status}`. \*\*api-client:\* +`generateTreatmentPlan(budgetId)`/`getTreatmentPlan(id)`/`executeTreatmentItem(itemId,{notes,performedAt?})` + tipos `TreatmentPlanDetail`/`TreatmentItemDetail`/`ExecutionEntry` + `BudgetDetail.treatmentPlan`.\* No detalhe do orçamento (`budget-detail.tsx`), quando \*\*APPROVED\*\*, seção "Plano de tratamento": se não há → botão \*\*"Gerar plano"\*\* (Server Action `generatePlanAction` → redireciona p/ `/planos/[id]`); se há → link "Ver plano →". Nova página \*\*`/planos/[id]`\*\* (Server Component) + `plan-items.tsx` (client): lista itens com \*\*progresso `doneCount/quantity`\*\*, status (Não iniciado/Em andamento/Concluído), histórico de execuções (data + observação) e \*\*"Registrar sessão"\*\* por item (input de observação opcional → `executeItemAction` → atualiza itens com o plano retornado).
+
+  \- \*Arquivos tocados:\* `apps/api/src/budget/budget.service.ts` (getBudget +treatmentPlan), `packages/api-client/src/index.ts` (3 métodos + 3 tipos + BudgetDetail), `apps/web/app/orcamentos/{actions.ts (+generatePlanAction),[id]/budget-detail.tsx (+seção)}`, `apps/web/app/planos/[id]/{page.tsx,actions.ts,plan-items.tsx}` (novos). Sem migration, sem dep nova.
+
+  \- \*Decisões:\* fluxo natural — \*\*gerar plano redireciona p/ a página do plano\*\* (como criar cobrança→/cobrancas). Execução por item via Server Action que devolve o plano atualizado (o client re-renderiza os itens). \*Limitação menor:\* o badge de status do PLANO no cabeçalho (Server Component) não atualiza ao vivo ao concluir o último item — só os itens; um reload mostra "Concluído" (o backend já marca COMPLETED). Página standalone `/planos/[id]` (consolidar numa visão única do paciente é melhoria futura).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (161 pass)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* novo orçamento aprovado → detalhe mostra "Plano de tratamento" → \*\*"Gerar plano" redireciona p/ `/planos/[id]`\*\* (Em andamento, item Clareamento 0/1) → \*\*"Registrar sessão"\*\* (com observação) → item \*\*"Concluído" 1/1\*\* + histórico "22/06/2026 — sessao via web" (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S30 COMPLETA.\*\* Próxima no backlog: \*\*S31 — Casos de alinhadores\*\* (`AlignerCase`/`AlignerStep`; acompanhamento por etapas; tela no app do paciente vê etapa atual e próxima troca). Depende de S30+S8. Herdadas: badge de status do plano ao vivo, vincular execução a `Appointment`, `Professional.specialties`, tela web do prontuário (só API), navegação comum web, listagem de anamneses pendentes no app, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
 
 
 

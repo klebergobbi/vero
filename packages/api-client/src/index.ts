@@ -153,6 +153,31 @@ export interface BudgetDetail extends BudgetSummary {
   items: BudgetItemDetail[];
   contract: { id: string; status: string } | null;
   charge: { id: string; status: string } | null;
+  treatmentPlan: { id: string; status: string } | null;
+}
+
+/** Plano de tratamento (§S30). */
+export interface ExecutionEntry {
+  id: string;
+  performedById: string;
+  performedAt: string;
+  notes: string | null;
+}
+export interface TreatmentItemDetail {
+  id: string;
+  description: string;
+  quantity: number;
+  doneCount: number;
+  status: string;
+  executions: ExecutionEntry[];
+}
+export interface TreatmentPlanDetail {
+  id: string;
+  patientId: string;
+  budgetId: string;
+  status: string;
+  createdAt: string;
+  items: TreatmentItemDetail[];
 }
 
 /** Parcela de uma cobrança (§S19). */
@@ -451,6 +476,30 @@ export function createApiClient(opts: ApiClientOptions) {
 
     getCharge: (id: string): Promise<ChargeDetail> =>
       request<ChargeDetail>(baseUrl, `/charges/${id}`, { accessToken }),
+
+    // --- Plano de tratamento + execução (§S30, gated record:read|write) ---
+
+    generateTreatmentPlan: (budgetId: string): Promise<TreatmentPlanDetail> =>
+      request<TreatmentPlanDetail>(baseUrl, "/treatment/plans", {
+        method: "POST",
+        body: JSON.stringify({ budgetId }),
+        accessToken,
+      }),
+
+    getTreatmentPlan: (id: string): Promise<TreatmentPlanDetail> =>
+      request<TreatmentPlanDetail>(baseUrl, `/treatment/plans/${id}`, {
+        accessToken,
+      }),
+
+    executeTreatmentItem: (
+      itemId: string,
+      input: { notes?: string; performedAt?: string },
+    ): Promise<TreatmentPlanDetail> =>
+      request<TreatmentPlanDetail>(
+        baseUrl,
+        `/treatment/items/${itemId}/execute`,
+        { method: "POST", body: JSON.stringify(input), accessToken },
+      ),
 
     // --- Odontograma (§S27, gated record:read|write) ---
 

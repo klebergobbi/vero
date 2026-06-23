@@ -66,6 +66,7 @@ model Tenant {
   executionLogs    ExecutionLog[]
   alignerCases     AlignerCase[]
   alignerSteps     AlignerStep[]
+  clinicalDocuments ClinicalDocument[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -130,6 +131,7 @@ model User {
   recordEntries  RecordEntry[]  @relation("RecordAuthor")
   specialtyForms SpecialtyForm[] @relation("SpecialtyAuthor")
   executions     ExecutionLog[] @relation("ExecutionPerformer")
+  signedDocuments ClinicalDocument[] @relation("DocumentSigner")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -272,6 +274,7 @@ model Patient {
   anamneses    Anamnesis[]
   treatmentPlans TreatmentPlan[]
   alignerCases AlignerCase[]
+  clinicalDocuments ClinicalDocument[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -1148,5 +1151,44 @@ model AlignerStep {
 enum AlignerCaseStatus {
   ACTIVE
   COMPLETED
+  CANCELLED
+}
+
+/// Documento clínico assinado digitalmente (§6/S32): atestado/receituário. `body`
+/// é o snapshot IMUTÁVEL do texto; `contentHash` (SHA-256) prova integridade
+/// (tamper-evident). Assinado pelo PROFISSIONAL (`signedById`) server-side — o
+/// certificado nunca trafega/armazena no client. A assinatura ICP qualificada é o
+/// gancho futuro (reusa o EsignService da S18; hoje é assinatura eletrônica + trilha).
+model ClinicalDocument {
+  id          String                 @id @default(cuid())
+  tenantId    String
+  patientId   String
+  type        ClinicalDocumentType
+  title       String
+  body        String
+  contentHash String
+  status      ClinicalDocumentStatus @default(DRAFT)
+  signedById  String?
+  signerName  String?
+  signedAt    DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient  Patient @relation(fields: [patientId], references: [id])
+  signedBy User?   @relation("DocumentSigner", fields: [signedById], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+enum ClinicalDocumentType {
+  ATTESTATION
+  PRESCRIPTION
+}
+
+enum ClinicalDocumentStatus {
+  DRAFT
+  SIGNED
   CANCELLED
 }

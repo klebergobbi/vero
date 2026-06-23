@@ -43,6 +43,7 @@ import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
 import { AlignerModule } from "./aligner/aligner.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
+import { DocumentModule } from "./document/document.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
 import { TreatmentModule } from "./treatment/treatment.module";
@@ -142,6 +143,7 @@ import { RedisModule } from "./redis/redis.module";
     SpecialtyModule,
     TreatmentModule,
     AlignerModule,
+    DocumentModule,
     MeModule,
     WhatsAppModule,
     PushModule,

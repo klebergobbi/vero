@@ -828,7 +828,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S32 — Atestados/Receituários + certificado digital
+\#### \[ ] S32 — Atestados/Receituários + certificado digital  ·  \*DIVIDIDA: \[x] S32a (backend: schema + serviço emitir/assinar/verify + PDF) · \[ ] S32b (tela web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1821,6 +1821,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc --noEmit` do mobile)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*`npx expo export --platform android`\*\* empacotou o app (bundle 5.3MB) — `app/aligner.tsx` + `myAligner` + Link resolvem no Metro. O endpoint `/me/aligner` consumido já foi validado AO VIVO na S31a (paciente vê etapa atual + próxima troca). \*Falta só (do usuário):\* abrir em device.
 
   \- \*Pendências p/ próxima:\* \*\*S31 COMPLETA.\*\* Próxima no backlog: \*\*S32 — Atestados/Receituários + certificado digital\*\* (`document/document.service.ts` gera PDF; assinatura digital ICP do profissional reusa esign; emitir receituário/atestado assinado com verificação de validade). Depende de S26. Herdadas: vincular caso de alinhadores ao plano S30, `Professional.specialties`, navegação comum web, listagem de anamneses no app, upload real ao Spaces, integrações reais (ICP qualificada), `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S32a — Atestados/Receituários + certificado digital: backend\*\*  ·  \*S32 DIVIDIDA em S32a (esta) + S32b (tela web)\*
+
+  \- \*O que foi feito:\* documentos clínicos assinados digitalmente. Schema: \*\*`ClinicalDocument`\*\* (type ATTESTATION/PRESCRIPTION, `title`, `body` snapshot imutável, `contentHash` SHA-256, status DRAFT/SIGNED/CANCELLED, `signedById`/`signerName`/`signedAt`) + 2 enums + back-relations (Tenant/Patient/User`DocumentSigner`) + migration aditiva. `DocumentService` tenant-scoped (anti-IDOR `ensureOwned`): `issue` (monta o corpo + `contentHash` via \*\*EsignService\*\* S18, cria DRAFT), `sign` (\*\*só DRAFT→409\*\*; a identidade do assinante vem do \*\*servidor\*\* — busca o `name` do `User` do JWT, nunca do cliente; marca SIGNED+signedAt), `verify` (\*\*validade\*\*: re-hash do body == contentHash \*\*E\*\* assinado → `valid`; tamper-evident), `list`/`get`, PDF via \*\*pdfkit\*\* + \*\*URL assinada\*\* HMAC+exp 5min (padrão recibo S24). `DocumentController` (equipe `record:read|write`: POST, GET, `/sign`, `/verify`, `/pdf` → URL assinada) + `GET /documents/file/:token` (\*\*`@Public`\*\*, stream PDF).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`ClinicalDocument` +2 enums +back-relations) + migration `s32_clinical_document` (aditiva), `apps/api/src/document/{document.service,document.controller,document.module}.ts` + `dto/document.dto.ts` (novos), `apps/api/src/app.module.ts` (+DocumentModule), teste `apps/api/test/document.service.spec.ts` (5 casos). Sem dep nova (pdfkit/crypto já existiam).
+
+  \- \*Decisões:\* assinatura do PROFISSIONAL \*\*server-side\*\* (identidade do JWT→User; \*\*certificado nunca no client\*\*, §5/S32). \*\*ICP qualificada = gancho futuro\*\* (Clicksign/D4Sign/BirdID) — hoje assinatura eletrônica simples + trilha (hash+assinante+timestamp), como o stub das outras integrações. Permissões reusam `record:*` (clínico — sem re-seed). PDF sob demanda + URL auto-assinada (upload ao DO Spaces = troca de produção, como S24/S26). \*\*BUG pego ao vivo:\* a classe tinha DUAS funções `sign` (a pública `sign(tenantId,id,signer)` e o helper HMAC privado `sign(payload)`) — em JS a 2ª sobrescreve a 1ª; renomeei o helper p/ `hmac`. Lição: cuidado com colisão de nome de método público vs privado.\*
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (172 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): emitir receituário → \*\*DRAFT\*\*; verify antes → \*\*signedOk false/valid false\*\*; assinar → \*\*SIGNED + signerName "Revisor Demo"\*\* (do servidor); verify depois → \*\*valid true\*\*; re-assinar → \*\*409\*\*; \*\*PDF por URL assinada sem auth → 200 `%PDF-`\*\*; token adulterado → 404; anti-IDOR doc alheio → 403; token de paciente em POST → 403. Tamper-evidence (corpo adulterado → integrityOk false) coberto por unit test.
+
+  \- \*Pendências p/ próxima:\* \*\*S32b\*\* — tela web: emitir atestado/receituário (escolher paciente + tipo + texto), assinar, ver status de validade e baixar/abrir o PDF (URL assinada). api-client +métodos. Herdadas: ICP qualificada real, vincular caso de alinhadores ao plano S30, `Professional.specialties`, navegação comum web, upload real ao Spaces, as de sempre.
 
 
 

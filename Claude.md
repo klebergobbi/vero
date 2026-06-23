@@ -828,7 +828,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S32 — Atestados/Receituários + certificado digital  ·  \*DIVIDIDA: \[x] S32a (backend: schema + serviço emitir/assinar/verify + PDF) · \[ ] S32b (tela web)\*
+\#### \[x] S32 — Atestados/Receituários + certificado digital  ·  \*DIVIDIDA: \[x] S32a (backend: schema + serviço emitir/assinar/verify + PDF) · \[x] S32b (tela web)\*
 
 \*\*Depende de:\*\* S26
 
@@ -1833,6 +1833,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (172 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): emitir receituário → \*\*DRAFT\*\*; verify antes → \*\*signedOk false/valid false\*\*; assinar → \*\*SIGNED + signerName "Revisor Demo"\*\* (do servidor); verify depois → \*\*valid true\*\*; re-assinar → \*\*409\*\*; \*\*PDF por URL assinada sem auth → 200 `%PDF-`\*\*; token adulterado → 404; anti-IDOR doc alheio → 403; token de paciente em POST → 403. Tamper-evidence (corpo adulterado → integrityOk false) coberto por unit test.
 
   \- \*Pendências p/ próxima:\* \*\*S32b\*\* — tela web: emitir atestado/receituário (escolher paciente + tipo + texto), assinar, ver status de validade e baixar/abrir o PDF (URL assinada). api-client +métodos. Herdadas: ICP qualificada real, vincular caso de alinhadores ao plano S30, `Professional.specialties`, navegação comum web, upload real ao Spaces, as de sempre.
+
+\- \*\*2026-06-23 · S32b — Atestados/Receituários: tela web (FECHA a S32)\*\*
+
+  \- \*O que foi feito:\* UI dos documentos clínicos. \*\*api-client:\* +`listDocuments(patientId)`/`issueDocument(input)`/`signDocument(id)`/`verifyDocument(id)`/`getDocumentPdf(id)` + tipos `ClinicalDocumentSummary`/`DocumentVerification`.\* Página \*\*`/documentos/[patientId]`\*\* (Server Component, lista os documentos) + `documents-panel.tsx` (client): form "Novo documento" (tipo Atestado/Receituário + título + conteúdo → \*\*Emitir\*\*); lista com status (Rascunho/Assinado), \*\*"Assinar"\*\* (DRAFT → SIGNED, mostra "Assinado por {profissional}"), \*\*"Verificar validade"\*\* (mostra "✓ Válido — integridade e assinatura conferidas" ou o motivo), \*\*"Abrir PDF"\*\* (Server Action devolve a URL assinada absoluta; abre em nova aba). `actions.ts` (4 Server Actions BFF, traduz 403/409).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 2 tipos), `apps/web/app/documentos/[patientId]/{page.tsx,actions.ts,documents-panel.tsx}` (novos). Sem backend novo (consome S32a), sem migration.
+
+  \- \*Decisões:\* "Abrir PDF" abre a aba \*\*sincronamente\*\* no clique (`window.open("","_blank")`) e navega após buscar a URL assinada — evita o bloqueio de popup ao chamar `window.open` após `await`. A URL do PDF é \*\*absoluta\*\* (`apiBaseUrl`+path), pois `/documents/file/:token` é `@Public` no backend (o token curto é a credencial). Página standalone `/documentos/[patientId]` (consolidar numa visão única do paciente — junto de ficha/odontograma/planos — é melhoria futura).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/documentos/demo-patient` → emitir Atestado → \*\*"Rascunho"\*\* → \*\*Assinar\*\* → "Assinado por Revisor Demo em 23/06/2026" + badge \*\*Assinado\*\* → \*\*Verificar validade\*\* → "✓ Válido — integridade e assinatura conferidas" → \*\*Abrir PDF\*\* abre nova aba em `/documents/file/...` (PDF; o Chromium headless aborta o frame ao renderizar PDF — esperado) (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S32 COMPLETA.\*\* Próxima no backlog: \*\*S33 — Alerta de retorno\*\* (`ReturnAlert`; fila `return-alert-scheduler`; ao fim da consulta agenda alerta; no prazo vira tarefa de reagendamento e/ou mensagem). Depende de S6+S12. Herdadas: ICP qualificada real, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos), `Professional.specialties`, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
 
 
 

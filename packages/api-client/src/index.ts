@@ -156,6 +156,27 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Documento clínico — atestado/receituário (§S32). */
+export interface ClinicalDocumentSummary {
+  id: string;
+  patientId: string;
+  type: string;
+  title: string;
+  status: string;
+  signerName: string | null;
+  signedAt: string | null;
+  createdAt: string;
+}
+export interface DocumentVerification {
+  id: string;
+  integrityOk: boolean;
+  signedOk: boolean;
+  valid: boolean;
+  signerName: string | null;
+  signedAt: string | null;
+  contentHash: string;
+}
+
 /** Plano de tratamento (§S30). */
 export interface ExecutionEntry {
   id: string;
@@ -499,6 +520,45 @@ export function createApiClient(opts: ApiClientOptions) {
         baseUrl,
         `/treatment/items/${itemId}/execute`,
         { method: "POST", body: JSON.stringify(input), accessToken },
+      ),
+
+    // --- Documentos clínicos (§S32, gated record:read|write) ---
+
+    listDocuments: (patientId: string): Promise<ClinicalDocumentSummary[]> =>
+      request<ClinicalDocumentSummary[]>(
+        baseUrl,
+        `/documents?patientId=${encodeURIComponent(patientId)}`,
+        { accessToken },
+      ),
+
+    issueDocument: (input: {
+      patientId: string;
+      type: string;
+      title: string;
+      content: string;
+    }): Promise<ClinicalDocumentSummary> =>
+      request<ClinicalDocumentSummary>(baseUrl, "/documents", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    signDocument: (id: string): Promise<ClinicalDocumentSummary> =>
+      request<ClinicalDocumentSummary>(baseUrl, `/documents/${id}/sign`, {
+        method: "POST",
+        accessToken,
+      }),
+
+    verifyDocument: (id: string): Promise<DocumentVerification> =>
+      request<DocumentVerification>(baseUrl, `/documents/${id}/verify`, {
+        accessToken,
+      }),
+
+    getDocumentPdf: (id: string): Promise<{ url: string; expiresAt: string }> =>
+      request<{ url: string; expiresAt: string }>(
+        baseUrl,
+        `/documents/${id}/pdf`,
+        { accessToken },
       ),
 
     // --- Odontograma (§S27, gated record:read|write) ---

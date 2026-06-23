@@ -894,7 +894,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S37 — Contas a pagar/receber
+\#### \[ ] S37 — Contas a pagar/receber  ·  \*DIVIDIDA: \[x] S37a (backend: Account + serviço + baixa manual) · \[ ] S37b (telas web)\*
 
 \*\*Depende de:\*\* S20
 
@@ -1929,6 +1929,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/imagens/demo-patient` → \*\*"Anexar arquivo"\*\* (PNG 8×8) → o client gera full+thumb no canvas e envia → \*\*galeria cresceu 2→3\*\*; o `src` da thumb aponta p/ `/records/images/...` (URL assinada) e \*\*o curl provou que a thumb nova é um PNG válido (200 image/png, `\\x89PNG`)\*\*. \*A captura por câmera (`getUserMedia`) exige device/permissão — validação real é do usuário; o thumbnail renderiza em browser real (no headless aparece como alt-text por timing cross-origin + a thumb "mini" semeada na S36a é inválida de propósito).\*
 
   \- \*Pendências p/ próxima:\* \*\*S36 COMPLETA — FECHA a FASE 3 (clínico avançado, S29–S36).\*\* Próxima no backlog: \*\*FASE 4 — S37 (Contas a pagar/receber)\*\* (`Account` tipo/vencimento/status; `finance/account.service.ts`; lançar conta a pagar/receber + baixa manual). Depende de S20. Herdadas: captura por câmera em device (usuário), upload real ao DO Spaces, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos/crc/protese/imagens), `Professional.specialties`, geração automática no CRC, cron de atraso protético, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S37a — Contas a pagar/receber: backend\*\*  ·  \*INÍCIO da FASE 4 (financeiro/gestão); S37 DIVIDIDA em S37a (esta) + S37b (telas web)\*
+
+  \- \*O que foi feito:\* lançamentos financeiros da clínica. Schema: \*\*`Account`\*\* (`type` PAYABLE/RECEIVABLE, description, `category`, `amountCents`, `dueDate`, `status` OPEN/PAID/CANCELLED, `paidAt?`, notes?) + 2 enums + back-relation Tenant + migration aditiva. `AccountService` (finance/account.service.ts) tenant-scoped (anti-IDOR `ensureOwned`): `create` (lança a pagar/receber), `list` (por type/status, com flag de \*\*atraso\*\* = OPEN+vencido, calculado na leitura), `summary` (totais em aberto por tipo via `groupBy` — visão de caixa), \*\*`markPaid`\*\* (BAIXA MANUAL → PAID+paidAt; não-aberta → 409), `cancel`. `AccountController` em `/accounts` (`billing:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`Account` +2 enums +Tenant.accounts) + migration `s37_account` (aditiva), `apps/api/src/finance/{account.service,account.controller,finance.module}.ts` + `dto/account.dto.ts` (novos), `apps/api/src/app.module.ts` (+FinanceModule), teste `apps/api/test/\*\*finance-account.service.spec.ts\*\*` (5 casos). Sem dep nova. \*Nota:\* o teste foi nomeado `finance-account...` porque já existe `account.service.spec.ts` (da S10a, exclusão de conta — outra classe `AccountService` em `src/auth/`); são classes homônimas em módulos diferentes (sem conflito de runtime, só o nome do arquivo de teste).
+
+  \- \*Decisões:\* permissões reusam \*\*`billing:*`\*\* (FINANCEIRO/GESTOR já têm — sem re-seed). Atraso calculado na leitura (como protético S35). `summary` agrega só OPEN por tipo (base p/ o fluxo de caixa da S38). Sem vínculo a paciente/cobrança (conta da CLÍNICA; a conciliação com pagamentos da S20 é da S38). Select extraído em const `ACCOUNT_SELECT` (fonte do select + tipo).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (198 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): lançar a PAGAR vencida → \*\*OPEN, isOverdue TRUE, R$2500\*\*; a RECEBER futura → isOverdue false; \*\*summary\*\* → a pagar 2500 / a receber 1200; lista PAYABLE → \*\*"ATRASADO"\*\*; \*\*baixa manual\*\* → \*\*PAID + paidAt\*\*; baixar já paga → \*\*409\*\*; anti-IDOR conta alheia → \*\*403\*\*; amount 0 → \*\*400\*\*. \*\*INCIDENTE de ambiente:\* o symlink `apps/api/node_modules/@nestjs/bullmq` ficou DANGLING (a entrada no `.pnpm` sumiu — algum estado divergente do store) e a API não subia ("Cannot find module @nestjs/bullmq"); corrigido com `pnpm install --frozen-lockfile` (não mexe no lockfile) + `prisma generate` (o reinstall reseta o @prisma/client). Lição: após erro "Cannot find module" de dep existente no package.json, reinstalar frozen + regenerar prisma.\*
+
+  \- \*Pendências p/ próxima:\* \*\*S37b\*\* — tela web `/financeiro` (lançar conta a pagar/receber: tipo + descrição + categoria + valor + vencimento; lista com atrasados destacados + totais em aberto; botões "Dar baixa"/"Cancelar"). api-client +métodos. Herdadas: conciliação das contas com pagamentos (S38 fluxo de caixa), as de sempre.
 
 
 

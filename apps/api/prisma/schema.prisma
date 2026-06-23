@@ -70,6 +70,7 @@ model Tenant {
   returnAlerts     ReturnAlert[]
   crcTasks         CRCTask[]
   prostheticOrders ProstheticOrder[]
+  accounts         Account[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -1309,5 +1310,38 @@ enum ProstheticOrderStatus {
   REQUESTED
   SENT
   RECEIVED
+  CANCELLED
+}
+
+/// Conta a pagar/receber da clínica (§6/S37): lançamento financeiro com vencimento,
+/// categoria e status. Baixa MANUAL (status PAID + paidAt). ATRASO = OPEN + vencido.
+model Account {
+  id          String        @id @default(cuid())
+  tenantId    String
+  type        AccountType
+  description String
+  category    String
+  amountCents Int
+  dueDate     DateTime
+  status      AccountStatus @default(OPEN)
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, type, status])
+}
+
+enum AccountType {
+  PAYABLE
+  RECEIVABLE
+}
+
+enum AccountStatus {
+  OPEN
+  PAID
   CANCELLED
 }

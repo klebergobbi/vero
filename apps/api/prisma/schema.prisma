@@ -67,6 +67,7 @@ model Tenant {
   alignerCases     AlignerCase[]
   alignerSteps     AlignerStep[]
   clinicalDocuments ClinicalDocument[]
+  returnAlerts     ReturnAlert[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -275,6 +276,7 @@ model Patient {
   treatmentPlans TreatmentPlan[]
   alignerCases AlignerCase[]
   clinicalDocuments ClinicalDocument[]
+  returnAlerts ReturnAlert[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -1190,5 +1192,37 @@ enum ClinicalDocumentType {
 enum ClinicalDocumentStatus {
   DRAFT
   SIGNED
+  CANCELLED
+}
+
+/// Alerta de retorno (§6/S33): ao fim da consulta, agenda um lembrete para o
+/// paciente voltar (ex.: profilaxia em 6 meses). No prazo (`dueDate`), o cron
+/// `return-alert-scheduler` marca TRIGGERED (vira tarefa de reagendamento) e
+/// dispara mensagem por WhatsApp (respeitando opt-out). Gera receita recorrente.
+model ReturnAlert {
+  id            String            @id @default(cuid())
+  tenantId      String
+  patientId     String
+  /// consulta de origem (referência opcional).
+  appointmentId String?
+  dueDate       DateTime
+  reason        String?
+  status        ReturnAlertStatus @default(SCHEDULED)
+  triggeredAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([tenantId])
+  @@index([patientId])
+  @@index([status, dueDate])
+}
+
+enum ReturnAlertStatus {
+  SCHEDULED
+  TRIGGERED
+  DONE
   CANCELLED
 }

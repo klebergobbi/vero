@@ -842,7 +842,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S33 — Alerta de retorno
+\#### \[x] S33 — Alerta de retorno
 
 \*\*Depende de:\*\* S6, S12
 
@@ -1845,6 +1845,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/documentos/demo-patient` → emitir Atestado → \*\*"Rascunho"\*\* → \*\*Assinar\*\* → "Assinado por Revisor Demo em 23/06/2026" + badge \*\*Assinado\*\* → \*\*Verificar validade\*\* → "✓ Válido — integridade e assinatura conferidas" → \*\*Abrir PDF\*\* abre nova aba em `/documents/file/...` (PDF; o Chromium headless aborta o frame ao renderizar PDF — esperado) (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S32 COMPLETA.\*\* Próxima no backlog: \*\*S33 — Alerta de retorno\*\* (`ReturnAlert`; fila `return-alert-scheduler`; ao fim da consulta agenda alerta; no prazo vira tarefa de reagendamento e/ou mensagem). Depende de S6+S12. Herdadas: ICP qualificada real, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos), `Professional.specialties`, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S33 — Alerta de retorno (cron + WhatsApp; sessão única backend)\*\*
+
+  \- \*O que foi feito:\* gera receita recorrente trazendo o paciente de volta. Schema: \*\*`ReturnAlert`\*\* (patientId, `appointmentId?` ref da consulta de origem, `dueDate`, `reason?`, `status` SCHEDULED/TRIGGERED/DONE/CANCELLED, `triggeredAt`) + enum + back-relations (Tenant/Patient) + migration aditiva. `ReturnService` tenant-scoped (anti-IDOR `ensureOwned`): `create` (dueDate explícito OU agora+`intervalDays`; senão 400), `list` (por status), `setStatus` (DONE=reagendado / CANCELLED), e \*\*`runDueAlerts(now)`\*\* (acha SCHEDULED com `dueDate<=agora` + paciente \*\*sem opt-out\*\*; marca \*\*TRIGGERED\*\* via `updateMany where status=SCHEDULED` — IDEMPOTENTE/anti-corrida — e envia WhatsApp best-effort). Fila \*\*`return-alert-scheduler`\*\* (cron diário 08:30, mesmo padrão da régua S22 — `ReturnAlertScheduler` repeatable job + `ReturnAlertProcessor`). `ReturnController`: `POST /return-alerts` (appointment:write), `GET /return-alerts[?status]` (appointment:read), `PATCH /return-alerts/:id/status`.
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`ReturnAlert` +enum +back-relations) + migration `s33_return_alert` (aditiva), `apps/api/src/return/{return.service,return-alert-scheduler,return.controller,return.module}.ts` + `dto/return.dto.ts` (novos), `apps/api/src/app.module.ts` (+ReturnModule), teste `apps/api/test/return.service.spec.ts` (5 casos). Sem dep nova (BullMQ/WhatsApp já existiam).
+
+  \- \*Decisões:\* "ao fim da consulta agenda alerta" = endpoint \*\*manual\*\* `POST /return-alerts` (a equipe cria ao finalizar; auto-trigger no status COMPLETED do Appointment fica p/ futuro). "vira tarefa de reagendamento" = status \*\*TRIGGERED\*\* (a CRC da S34 vai consumir esses) + mensagem WhatsApp. Permissões reusam \*\*`appointment:*`\*\* (recepção/agenda — sem re-seed). Idempotência por estado (SCHEDULED→TRIGGERED guarded), não por unique. Cron às 08:30 (a régua S22 já usa 08:00 — escalonado). \*\*Sem UI\*\* (a spec lista só schema+fila+service; a CRC S34 dará a tela).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (177 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real + \*\*stub Evolution\*\* na 9091): agendar retorno vencido (`dueDate` no passado) → SCHEDULED; agendar futuro (`intervalDays:180`) → due 6 meses à frente; listar SCHEDULED=2; create sem due/interval → \*\*400\*\*; anti-IDOR outro tenant → \*\*403\*\*. \*\*`runDueAlerts` via contexto Nest real:\* RUN1 = `{triggered:1,sent:1}` (stub recebeu 1 `sendText` "Olá, Paciente Demo! Está na hora do seu retorno…"); RUN2 = `{triggered:0}` (IDEMPOTENTE, sem reenvio); com \*\*opt-out\*\* ligado → `{triggered:0}` e o alerta segue SCHEDULED (RESPEITA opt-out).\* Ambiente/stub derrubados; script descartável removido.
+
+  \- \*Pendências p/ próxima:\* \*\*S33 COMPLETA.\*\* Próxima no backlog: \*\*S34 — CRC (Central de Relacionamento)\*\* (`CRCTask`; `crc/{module,service,controller}.ts`; tela web lista priorizada de contatos do dia: retorno/pós-venda/reativação/aniversário, marcar-como-feito + atribuição). Depende de S33. \*Nota:\* a S34 pode \*\*consumir os `ReturnAlert` TRIGGERED\*\* como fonte de tarefas. Herdadas: auto-trigger do retorno no fim da consulta (status Appointment), `MessageLog`, ICP qualificada real, navegação comum web, `Professional.specialties`, upload real ao Spaces, integrações reais, as de sempre.
 
 
 

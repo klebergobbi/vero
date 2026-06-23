@@ -44,6 +44,7 @@ import { CreditModule } from "./credit/credit.module";
 import { AlignerModule } from "./aligner/aligner.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { DocumentModule } from "./document/document.module";
+import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
 import { TreatmentModule } from "./treatment/treatment.module";
@@ -144,6 +145,7 @@ import { RedisModule } from "./redis/redis.module";
     TreatmentModule,
     AlignerModule,
     DocumentModule,
+    ReturnModule,
     MeModule,
     WhatsAppModule,
     PushModule,

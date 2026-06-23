@@ -64,6 +64,8 @@ model Tenant {
   treatmentPlans   TreatmentPlan[]
   treatmentItems   TreatmentItem[]
   executionLogs    ExecutionLog[]
+  alignerCases     AlignerCase[]
+  alignerSteps     AlignerStep[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -269,6 +271,7 @@ model Patient {
   medicalRecord MedicalRecord?
   anamneses    Anamnesis[]
   treatmentPlans TreatmentPlan[]
+  alignerCases AlignerCase[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -1099,4 +1102,51 @@ enum TreatmentItemStatus {
   PENDING
   IN_PROGRESS
   DONE
+}
+
+/// Caso de alinhadores (§6/S31). Acompanhamento por etapas (cada AlignerStep = um
+/// alinhador, com data prevista de troca). `currentStep` = etapa que o paciente usa
+/// agora; a "próxima troca" é a `changeDate` da etapa currentStep+1.
+model AlignerCase {
+  id          String            @id @default(cuid())
+  tenantId    String
+  patientId   String
+  title       String
+  totalSteps  Int
+  currentStep Int               @default(1)
+  status      AlignerCaseStatus @default(ACTIVE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient       @relation(fields: [patientId], references: [id])
+  steps   AlignerStep[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+/// Etapa (alinhador) de um caso (§6/S31). `number` 1..totalSteps; `changeDate` =
+/// data prevista para começar a usar este alinhador.
+model AlignerStep {
+  id         String   @id @default(cuid())
+  tenantId   String
+  caseId     String
+  number     Int
+  changeDate DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  case   AlignerCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, number])
+  @@index([tenantId])
+  @@index([caseId])
+}
+
+enum AlignerCaseStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }

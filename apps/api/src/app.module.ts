@@ -41,6 +41,7 @@ import { CollectionModule } from "./collection/collection.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
+import { AlignerModule } from "./aligner/aligner.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
@@ -140,6 +141,7 @@ import { RedisModule } from "./redis/redis.module";
     AnamnesisModule,
     SpecialtyModule,
     TreatmentModule,
+    AlignerModule,
     MeModule,
     WhatsAppModule,
     PushModule,

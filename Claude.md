@@ -816,7 +816,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S31 — Casos de alinhadores
+\#### \[ ] S31 — Casos de alinhadores  ·  \*DIVIDIDA: \[x] S31a (backend: schema + serviço criar/avançar + visão do paciente) · \[ ] S31b (tela no app do paciente)\*
 
 \*\*Depende de:\*\* S30, S8
 
@@ -1797,6 +1797,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (161 pass)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* novo orçamento aprovado → detalhe mostra "Plano de tratamento" → \*\*"Gerar plano" redireciona p/ `/planos/[id]`\*\* (Em andamento, item Clareamento 0/1) → \*\*"Registrar sessão"\*\* (com observação) → item \*\*"Concluído" 1/1\*\* + histórico "22/06/2026 — sessao via web" (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S30 COMPLETA.\*\* Próxima no backlog: \*\*S31 — Casos de alinhadores\*\* (`AlignerCase`/`AlignerStep`; acompanhamento por etapas; tela no app do paciente vê etapa atual e próxima troca). Depende de S30+S8. Herdadas: badge de status do plano ao vivo, vincular execução a `Appointment`, `Professional.specialties`, tela web do prontuário (só API), navegação comum web, listagem de anamneses pendentes no app, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S31a — Casos de alinhadores: backend (criar/avançar + visão do paciente)\*\*  ·  \*S31 DIVIDIDA em S31a (esta) + S31b (tela no app do paciente)\*
+
+  \- \*O que foi feito:\* acompanhamento de alinhadores por etapas. Schema: \*\*`AlignerCase`\*\* (patientId, title, `totalSteps`, `currentStep` @default 1, `status` ACTIVE/COMPLETED/CANCELLED) + \*\*`AlignerStep`\*\* (`number` 1..N, `changeDate` = data prevista de troca, `@@unique([caseId,number])`, notes?) + enum + back-relations (Tenant/Patient) + migration aditiva. `AlignerService` tenant-scoped (anti-IDOR `ensureOwned`): `createCase` (gera N etapas com `changeDate = startDate + (i-1)*intervalDays`), `listCases`/`getCase`, `advance` (currentStep+1; na última → \*\*COMPLETED\*\*; caso não-ativo → 409), e \*\*`myCases`\*\* (visão do PACIENTE owner-scoped: etapa atual + `nextStep`/`nextChangeDate` = a `changeDate` de currentStep+1). 2 controllers: `AlignerController` (equipe `record:read|write`: POST/GET cases, POST `/cases/:id/advance`) + `MeAlignerController` (\*\*`@Patient`\*\* `GET /me/aligner`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`AlignerCase` +`AlignerStep` +enum +back-relations) + migration `s31_aligner` (aditiva), `apps/api/src/aligner/{aligner.service,aligner.controller,aligner.module}.ts` + `dto/aligner.dto.ts` (novos), `apps/api/src/app.module.ts` (+AlignerModule), teste `apps/api/test/aligner.service.spec.ts` (6 casos). Sem dep nova.
+
+  \- \*Decisões:\* etapas geradas a partir de `startDate`+`intervalDays` (ex.: 14d) no create — o caso fica standalone (não acoplado a `TreatmentItem` ainda; vincular ao plano S30 fica p/ futuro). `currentStep` = alinhador em uso; "próxima troca" = `changeDate` da etapa seguinte (o que o app mostra). Permissões reusam `record:*` (clínico — sem re-seed). Visão do paciente reusa a faixa `@Patient`/`@PatientId` (S8b), owner-scoped por `patientId` do JWT.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (167 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): criar caso 4 etapas troca/14d → \*\*4 steps com datas 01/07, 15/07, 29/07, 12/08, currentStep 1\*\*; \*\*paciente `GET /me/aligner`\*\* → atual 1/4 + próxima troca 15/07; equipe \*\*advance\*\* 1→2 → paciente vê atual 2 + próxima 29/07; avançar até a última → \*\*COMPLETED\*\*; advance em concluído → \*\*409\*\*; anti-IDOR: caso alheio (equipe) → \*\*403\*\*, token de equipe em `/me/aligner` → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S31b\*\* — tela no app do paciente (mobile-patient): `lib/api +myAligner`, tela `app/aligner.tsx` (lista os casos com etapa atual N/total + data da próxima troca) + link na home. Reusa o padrão de refresh-on-401. Herdadas: vincular caso ao plano S30, `Professional.specialties`, navegação comum web, listagem de anamneses no app, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
 
 
 

@@ -77,6 +77,18 @@ export interface OpenSlot {
   end: string;
 }
 
+/** Caso de alinhadores — visão do paciente (§S31). */
+export interface AlignerCaseSummary {
+  id: string;
+  title: string;
+  totalSteps: number;
+  currentStep: number;
+  status: string;
+  currentChangeDate: string | null;
+  nextStep: number | null;
+  nextChangeDate: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -234,4 +246,9 @@ export const api = {
       accessToken,
       body: JSON.stringify(signerName ? { signerName } : {}),
     }),
+
+  // --- Casos de alinhadores (§S31) ---
+
+  myAligner: (accessToken: string): Promise<AlignerCaseSummary[]> =>
+    request<AlignerCaseSummary[]>("/me/aligner", { accessToken }),
 };

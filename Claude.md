@@ -816,7 +816,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S31 — Casos de alinhadores  ·  \*DIVIDIDA: \[x] S31a (backend: schema + serviço criar/avançar + visão do paciente) · \[ ] S31b (tela no app do paciente)\*
+\#### \[x] S31 — Casos de alinhadores  ·  \*DIVIDIDA: \[x] S31a (backend: schema + serviço criar/avançar + visão do paciente) · \[x] S31b (tela no app do paciente)\*
 
 \*\*Depende de:\*\* S30, S8
 
@@ -1809,6 +1809,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (167 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): criar caso 4 etapas troca/14d → \*\*4 steps com datas 01/07, 15/07, 29/07, 12/08, currentStep 1\*\*; \*\*paciente `GET /me/aligner`\*\* → atual 1/4 + próxima troca 15/07; equipe \*\*advance\*\* 1→2 → paciente vê atual 2 + próxima 29/07; avançar até a última → \*\*COMPLETED\*\*; advance em concluído → \*\*409\*\*; anti-IDOR: caso alheio (equipe) → \*\*403\*\*, token de equipe em `/me/aligner` → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S31b\*\* — tela no app do paciente (mobile-patient): `lib/api +myAligner`, tela `app/aligner.tsx` (lista os casos com etapa atual N/total + data da próxima troca) + link na home. Reusa o padrão de refresh-on-401. Herdadas: vincular caso ao plano S30, `Professional.specialties`, navegação comum web, listagem de anamneses no app, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-23 · S31b — Casos de alinhadores: tela no app do paciente (FECHA a S31)\*\*
+
+  \- \*O que foi feito:\* o paciente acompanha os alinhadores pelo app. `lib/api.ts` +`myAligner(accessToken)` (`GET /me/aligner`) + tipo `AlignerCaseSummary`. Nova tela \*\*`app/aligner.tsx`\*\* ("Meus alinhadores"): lista os casos do paciente mostrando \*\*"Alinhador X de N"\*\* (etapa atual), status (Em andamento/Concluído) e \*\*"Próxima troca: DD/MM/AAAA (alinhador X+1)"\*\* — ou "último alinhador"/"Tratamento concluído 🎉" quando não há próxima; refresh-on-401 (retry único), estados loading/erro/vazio, paleta da marca. Link \*\*"Meus alinhadores"\*\* na home (`Link href="/aligner"`).
+
+  \- \*Arquivos tocados:\* `apps/mobile-patient/{lib/api.ts (+myAligner +tipo),app/aligner.tsx (novo),app/index.tsx (+link)}`. Sem backend novo (consome S31a), sem dep nova.
+
+  \- \*Decisões:\* tela self-contained reusando `api`+`useAuth` do app (padrão das telas S21/S18b). Mostra a "próxima troca" = `nextChangeDate`/`nextStep` que o backend já calcula (a UI não recalcula). Sem ação de avançar no app (avançar é da equipe, S31a) — o paciente só visualiza, alinhado ao aceite.
+
+  \- \*Verificação:\* `pnpm lint` (8/8, inclui `tsc --noEmit` do mobile)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*`npx expo export --platform android`\*\* empacotou o app (bundle 5.3MB) — `app/aligner.tsx` + `myAligner` + Link resolvem no Metro. O endpoint `/me/aligner` consumido já foi validado AO VIVO na S31a (paciente vê etapa atual + próxima troca). \*Falta só (do usuário):\* abrir em device.
+
+  \- \*Pendências p/ próxima:\* \*\*S31 COMPLETA.\*\* Próxima no backlog: \*\*S32 — Atestados/Receituários + certificado digital\*\* (`document/document.service.ts` gera PDF; assinatura digital ICP do profissional reusa esign; emitir receituário/atestado assinado com verificação de validade). Depende de S26. Herdadas: vincular caso de alinhadores ao plano S30, `Professional.specialties`, navegação comum web, listagem de anamneses no app, upload real ao Spaces, integrações reais (ICP qualificada), `MessageLog`, as de sempre.
 
 
 

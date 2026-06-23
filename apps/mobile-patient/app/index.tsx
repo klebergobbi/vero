@@ -259,6 +259,11 @@ export default function Home() {
             <Text style={styles.bookBtnText}>Financeiro</Text>
           </TouchableOpacity>
         </Link>
+        <Link href="/aligner" asChild>
+          <TouchableOpacity style={styles.bookBtn} accessibilityRole="button">
+            <Text style={styles.bookBtnText}>Meus alinhadores</Text>
+          </TouchableOpacity>
+        </Link>
       </View>
 
       {loading ? (

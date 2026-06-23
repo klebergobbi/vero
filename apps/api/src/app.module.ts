@@ -44,6 +44,7 @@ import { CreditModule } from "./credit/credit.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
+import { TreatmentModule } from "./treatment/treatment.module";
 import { MeModule } from "./me/me.module";
 import { OdontogramModule } from "./odontogram/odontogram.module";
 import { OrgModule } from "./org/org.module";
@@ -138,6 +139,7 @@ import { RedisModule } from "./redis/redis.module";
     OdontogramModule,
     AnamnesisModule,
     SpecialtyModule,
+    TreatmentModule,
     MeModule,
     WhatsAppModule,
     PushModule,

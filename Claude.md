@@ -804,7 +804,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S30 — Plano de tratamento + execução
+\#### \[ ] S30 — Plano de tratamento + execução  ·  \*DIVIDIDA: \[x] S30a (backend: schema + serviço gerar/executar) · \[ ] S30b (telas web)\*
 
 \*\*Depende de:\*\* S17, S26
 
@@ -1773,6 +1773,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/ficha/demo-patient` → aba Ortodontia mostra "Versão atual: v2" (dados da S29a) → trocar p/ \*\*Implantodontia\*\* re-renderiza campos diferentes (Tipo ósseo/Torque/etc) → preencher Marca "Neodent"+Diâmetro 4 → "Salvar nova versão" → \*\*"Ficha salva (v1)"\*\* + "Histórico: v1" (screenshot). No banco: `SpecialtyForm` IMPLANT v1, \*\*`valuesEnc` cifrado ("Neodent" não vaza)\*\*.\*
 
   \- \*Pendências p/ próxima:\* \*\*S29 COMPLETA.\*\* Próxima no backlog: \*\*S30 — Plano de tratamento + execução\*\* (`TreatmentPlan`/`TreatmentItem`/`ExecutionLog`; converter orçamento em plano executável por sessão; registrar execução com data/profissional). Depende de S17+S26. Herdadas: `Professional.specialties` com enforcement, listagem de anamneses pendentes no app, tela web do prontuário (só API), navegação comum web (menu agenda/catalogo/orcamentos/ficha/odontograma), upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
+
+\- \*\*2026-06-22 · S30a — Plano de tratamento + execução: backend\*\*  ·  \*S30 DIVIDIDA em S30a (esta) + S30b (telas web)\*
+
+  \- \*O que foi feito:\* converte orçamento em plano executável por sessão. Schema: \*\*`TreatmentPlan`\*\* (`budgetId @unique` = 1 plano por orçamento, patientId, `status` ACTIVE/COMPLETED/CANCELLED) + \*\*`TreatmentItem`\*\* (snapshot `description` do item do orçamento, `quantity` sessões previstas, `doneCount`, `status` PENDING/IN_PROGRESS/DONE) + \*\*`ExecutionLog`\*\* (`performedById` profissional + `performedAt` + `notes`) + enums + back-relations (Tenant/Patient/Budget/User`ExecutionPerformer`) + migration aditiva. `TreatmentService` tenant-scoped (anti-IDOR `ensureOwned`): `generateFromBudget` (de orçamento \*\*APPROVED\*\* senão 400; \*\*1 por orçamento\*\* senão 409; cria os itens a partir dos `BudgetItem`), `listPlans`/`getPlan` (itens + execuções), `executeItem` (\*\*`$transaction`\*\*: cria ExecutionLog + incrementa `doneCount` + status IN_PROGRESS/DONE; quando todos os itens DONE → \*\*plano COMPLETED\*\*; item já concluído → 409). `TreatmentController`: `POST /treatment/plans`, `GET /treatment/plans[?patientId]`, `GET /treatment/plans/:id`, `POST /treatment/items/:id/execute` (profissional do `@CurrentPrincipal`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+3 modelos +2 enums +back-relations) + migration `s30_treatment_plan` (aditiva), `apps/api/src/treatment/{treatment.service,treatment.controller,treatment.module}.ts` + `dto/treatment.dto.ts` (novos), `apps/api/src/app.module.ts` (+TreatmentModule), teste `apps/api/test/treatment.service.spec.ts` (6 casos). Sem dep nova.
+
+  \- \*Decisões:\* permissões reusam \*\*`record:read|write`\*\* (execução é ato clínico do prontuário — DENTISTA/GESTOR já têm; evita re-seed). Execução por \*\*sessão\*\* = um `ExecutionLog` por chamada, `doneCount` até `quantity` (item DONE ao atingir; plano COMPLETED quando todos DONE) — modelo simples sem agenda acoplada (vincular a `Appointment` fica p/ futuro). Snapshot da descrição no `TreatmentItem` (plano imutável ao histórico do orçamento). \*\*1 plano por orçamento\*\* (`budgetId @unique`).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (161 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; orçamento demo aprovado com item 2x): gerar plano → \*\*ACTIVE, item PENDING 0/2\*\*; re-gerar → \*\*409\*\*; executar 1/2 → \*\*IN_PROGRESS\*\*; executar 2/2 → \*\*item DONE + plano COMPLETED\*\*; executar concluído → \*\*409\*\*; anti-IDOR plano alheio → \*\*403\*\*. No banco: 2 `ExecutionLog` com data + profissional ("Revisor Demo"). \*Aprendizado:\* a rota de status do orçamento é `PATCH /budgets/:id/status` (não POST).
+
+  \- \*Pendências p/ próxima:\* \*\*S30b\*\* — telas web: gerar plano a partir do detalhe do orçamento aprovado (botão), página do plano (`/planos/[id]` ou aba) listando itens com progresso (doneCount/quantity) e botão "Registrar sessão" por item (chama `execute`), mostra histórico de execuções (data/profissional). api-client +métodos. Herdadas: vincular execução a `Appointment`, `Professional.specialties`, tela web do prontuário (só API), navegação comum web, as de sempre.
 
 
 

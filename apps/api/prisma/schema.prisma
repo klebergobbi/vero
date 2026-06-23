@@ -61,6 +61,9 @@ model Tenant {
   anamnesisTemplates AnamnesisTemplate[]
   anamneses        Anamnesis[]
   specialtyForms   SpecialtyForm[]
+  treatmentPlans   TreatmentPlan[]
+  treatmentItems   TreatmentItem[]
+  executionLogs    ExecutionLog[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -124,6 +127,7 @@ model User {
   notifications  Notification[]
   recordEntries  RecordEntry[]  @relation("RecordAuthor")
   specialtyForms SpecialtyForm[] @relation("SpecialtyAuthor")
+  executions     ExecutionLog[] @relation("ExecutionPerformer")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -264,6 +268,7 @@ model Patient {
   creditChecks CreditCheck[]
   medicalRecord MedicalRecord?
   anamneses    Anamnesis[]
+  treatmentPlans TreatmentPlan[]
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -538,6 +543,7 @@ model Budget {
   items    BudgetItem[]
   contract Contract?
   charge   Charge?
+  treatmentPlan TreatmentPlan?
 
   @@index([tenantId])
   @@index([patientId])
@@ -1020,4 +1026,77 @@ model SpecialtyForm {
   @@unique([recordId, specialty, version])
   @@index([tenantId])
   @@index([recordId, specialty])
+}
+
+/// Plano de tratamento (§6/S30). Gerado a partir de um orçamento APROVADO
+/// (`budgetId @unique` = 1 plano por orçamento). Executável por sessão via itens.
+model TreatmentPlan {
+  id        String              @id @default(cuid())
+  tenantId  String
+  patientId String
+  budgetId  String              @unique
+  status    TreatmentPlanStatus @default(ACTIVE)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  patient Patient         @relation(fields: [patientId], references: [id])
+  budget  Budget          @relation(fields: [budgetId], references: [id])
+  items   TreatmentItem[]
+
+  @@index([tenantId])
+  @@index([patientId])
+}
+
+/// Item executável do plano (§6/S30). Snapshot da descrição do item do orçamento +
+/// `quantity` sessões previstas; `doneCount` = sessões já executadas (execução por
+/// sessão registra um ExecutionLog e incrementa). DONE quando doneCount == quantity.
+model TreatmentItem {
+  id          String              @id @default(cuid())
+  tenantId    String
+  planId      String
+  procedureId String?
+  description String
+  quantity    Int                 @default(1)
+  doneCount   Int                 @default(0)
+  status      TreatmentItemStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan       TreatmentPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  executions ExecutionLog[]
+
+  @@index([tenantId])
+  @@index([planId])
+}
+
+/// Registro de execução de uma sessão (§6/S30). Data + profissional que executou.
+model ExecutionLog {
+  id            String   @id @default(cuid())
+  tenantId      String
+  itemId        String
+  performedById String
+  performedAt   DateTime @default(now())
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item        TreatmentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  performedBy User          @relation("ExecutionPerformer", fields: [performedById], references: [id])
+
+  @@index([tenantId])
+  @@index([itemId])
+}
+
+enum TreatmentPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TreatmentItemStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }

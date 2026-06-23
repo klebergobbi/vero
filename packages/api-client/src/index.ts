@@ -156,6 +156,22 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Tarefa da Central de Relacionamento (§S34). */
+export interface CrcTask {
+  id: string;
+  patientId: string;
+  type: string;
+  status: string;
+  priority: number;
+  dueDate: string | null;
+  notes: string | null;
+  assignedToId: string | null;
+  doneAt: string | null;
+  createdAt: string;
+  patient: { name: string; phone: string };
+  assignedTo: { name: string } | null;
+}
+
 /** Documento clínico — atestado/receituário (§S32). */
 export interface ClinicalDocumentSummary {
   id: string;
@@ -521,6 +537,45 @@ export function createApiClient(opts: ApiClientOptions) {
         `/treatment/items/${itemId}/execute`,
         { method: "POST", body: JSON.stringify(input), accessToken },
       ),
+
+    // --- CRC (§S34, gated appointment:read|write) ---
+
+    listCrcTasks: (status?: string): Promise<CrcTask[]> =>
+      request<CrcTask[]>(
+        baseUrl,
+        `/crc/tasks${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+        { accessToken },
+      ),
+
+    syncCrcTasks: (): Promise<{ created: number }> =>
+      request<{ created: number }>(baseUrl, "/crc/tasks/sync", {
+        method: "POST",
+        accessToken,
+      }),
+
+    createCrcTask: (input: {
+      patientId: string;
+      type: string;
+      notes?: string;
+    }): Promise<CrcTask> =>
+      request<CrcTask>(baseUrl, "/crc/tasks", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    markCrcTaskDone: (id: string): Promise<CrcTask> =>
+      request<CrcTask>(baseUrl, `/crc/tasks/${id}/done`, {
+        method: "PATCH",
+        accessToken,
+      }),
+
+    assignCrcTask: (id: string, userId: string | null): Promise<CrcTask> =>
+      request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
+        method: "PATCH",
+        body: JSON.stringify({ userId }),
+        accessToken,
+      }),
 
     // --- Documentos clínicos (§S32, gated record:read|write) ---
 

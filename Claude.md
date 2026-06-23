@@ -854,7 +854,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S34 — CRC (Central de Relacionamento)  ·  \*DIVIDIDA: \[x] S34a (backend: CRCTask + serviço + sync ReturnAlert) · \[ ] S34b (tela web lista priorizada)\*
+\#### \[x] S34 — CRC (Central de Relacionamento)  ·  \*DIVIDIDA: \[x] S34a (backend: CRCTask + serviço + sync ReturnAlert) · \[x] S34b (tela web lista priorizada)\*
 
 \*\*Depende de:\*\* S33
 
@@ -1869,6 +1869,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (183 pass, +6; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 ReturnAlert TRIGGERED da S33): \*\*sync\*\* → created 1 (virou tarefa RETURN); \*\*sync de novo → created 0\*\* (idempotente); criar BIRTHDAY manual → priority 5/OPEN; \*\*lista priorizada\*\* → RETURN(10) antes de BIRTHDAY(5); \*\*atribuir\*\* a profissional → assignedTo "Revisor Demo"; \*\*desatribuir\*\* (null) → None; responsável inválido → \*\*400\*\*; \*\*marcar feito\*\* → DONE+doneAt, some da lista OPEN (DONE=1); anti-IDOR tarefa alheia → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S34b\*\* — tela web `/crc` (lista priorizada de contatos do dia: tipo + paciente + telefone + responsável; botões "Sincronizar retornos", "Marcar feito", seletor de responsável; criar tarefa manual). api-client +métodos. Herdadas: geração automática de aniversário/reativação, auto-trigger do retorno no fim da consulta, navegação comum web, `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-23 · S34b — CRC: tela web (lista priorizada) (FECHA a S34)\*\*
+
+  \- \*O que foi feito:\* UI da Central de Relacionamento. \*\*api-client:\* +`listCrcTasks(status?)`/`syncCrcTasks()`/`createCrcTask(input)`/`markCrcTaskDone(id)`/`assignCrcTask(id,userId|null)` + tipo `CrcTask`.\* Página \*\*`/crc`\*\* (Server Component, busca tarefas OPEN + profissionais + pacientes em paralelo) + `crc-list.tsx` (client): botão \*\*"Sincronizar retornos"\*\* (importa os ReturnAlert TRIGGERED, mostra "N importada(s)"); form \*\*"Nova tarefa"\*\* (paciente + tipo Pós-venda/Reativação/Aniversário/Outro + observação → Adicionar); \*\*lista priorizada de "Contatos do dia"\*\* com nome+telefone do paciente, badge colorido por tipo, observação, \*\*seletor de responsável\*\* (atribui/desatribui na hora) e \*\*"Marcar feito"\*\* (some da lista OPEN). Cada ação devolve a lista atualizada (Server Actions BFF).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 1 tipo), `apps/web/app/crc/{page.tsx,actions.ts,crc-list.tsx}` (novos). Sem backend novo (consome S34a), sem migration.
+
+  \- \*Decisões:\* a tela mostra só OPEN (a fila do dia); cada Server Action re-lista após mutar (estado sempre fresco). Seletor de responsável reusa `listProfessionals` (S-extra) e o de paciente `listPatients`. Página standalone `/crc` (menu de navegação comum entre as telas web segue pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* semeado 1 ReturnAlert TRIGGERED → `/crc` → \*\*"Sincronizar retornos"\*\* → "importada" + card badge \*\*"Retorno"\*\* → \*\*"Marcar feito"\*\* no 1º card → \*\*Contatos do dia caiu de 2 p/ 1\*\* (restou a tarefa "Aniversário" do Paciente Demo, "Parabenizar", "Sem responsável") — screenshot confirma a tela (form de nova tarefa + lista priorizada + seletor de responsável).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S34 COMPLETA.\*\* Próxima no backlog: \*\*S35 — Controle protético\*\* (`ProstheticOrder`; `prosthetic/service.ts`; rastrear envio/retorno de laboratório com prazos e status; alerta de atraso; vínculo ao tratamento). Depende de S30. Herdadas: geração automática de aniversário/reativação no CRC, auto-trigger do retorno no fim da consulta, navegação comum web (agenda/catalogo/orcamentos/ficha/odontograma/documentos/planos/crc), `Professional.specialties`, upload real ao Spaces, integrações reais, `MessageLog`, as de sempre.
 
 
 

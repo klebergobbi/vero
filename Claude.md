@@ -996,7 +996,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S45 — Central de acessos multi-unidade
+\#### \[x] S45 — Central de acessos multi-unidade  ·  \*DIVIDIDA: \[x] S45a (backend: contexto de unidade no JWT + AccessService) · \[x] S45b (seletor de unidade no web)\*
 
 \*\*Depende de:\*\* S4
 
@@ -2121,6 +2121,40 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (232 pass, 2 skip)/`build` (web compila `/crm`)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/crm` renderiza \*\*ROI: Instagram 2 leads/1 fechado/receita R\$800/investido R\$300/\*\*\*\*ROI R\$500\*\*; funil (Pedro=Novo com botões, Joana Lead=Fechado·R\$800); \*\*\"Paciente Demo indicou Joana Lead (Fechado)\"\*\*; demografia (30-44 + São Paulo). \*\*Escrita:\* criar canal \"Google Ads\" R\$150 → `router.refresh` mostra na tabela com \*\*ROI -R\$150\*\* (vermelho).\*
 
   \- \*Pendências p/ próxima:\* \*\*S44 COMPLETA — FECHA a FASE 4 (financeiro da clínica + gestão estratégica, S37–S44).\*\* Próxima no backlog: \*\*FASE 5 — S45 (Central de acessos multi-unidade)\*\* — contexto de unidade no JWT/sessão, `network/access.service.ts`, seletor de unidade no web; troca de unidade revalida autorização no servidor (anti-IDOR). Depende de S4. Herdadas: navegação comum web (menu agenda/.../crm), `convertedPatientId` no fechamento, `Professional.specialties`, modelos `Professional`/`Room` dedicados, extrair `@vero/mobile-shared`, as de sempre.
+
+\- \*\*2026-06-24 · REPARO DE BUILD — tsc latente mascarado pelo cache do turbo\*\*  ·  \*pré-requisito da S45 (DoD: build verde)\*
+
+  \- \*O que foi feito:\* ao rodar `pnpm build` (turbo → `nest build` com `deleteOutDir`) o `nest build` recompilou TUDO e surgiram \*\*23 erros de `tsc`\*\* pré-existentes em 8 serviços de sessões anteriores — antes \*\*escondidos pelo cache incremental do turbo / `.tsbuildinfo`\*\* (sub-sessões "b" só tocavam web/api-client, então o build da api vinha do cache da última vez que passou). Alguns erros (`treatment` 'budget/item possibly null', `dashboard` logger não usado) são plain strict-null/unused — nunca compilaram limpo; outros vieram de \*\*drift de versão\*\* (`@prisma/client` 6.19.3 endureceu where/create sob `exactOptionalPropertyTypes`; `@types/node` deixou `Buffer` incompatível com `Uint8Array<ArrayBuffer>` no campo Bytes). Correções mecânicas: `treatment` usa o retorno não-nulo de `ensureOwned` (`const x = scope.ensureOwned(row)`); `report` cast de tipo `content as unknown as Uint8Array<ArrayBuffer>` (Buffer segue ok em runtime — o teste depende disso); `crc/crm/finance/prosthetic/return` `NonNullable<...["status"]>` nos casts; `crc` `priority ?? 10` (noUncheckedIndexedAccess); `dashboard` removeu o `Logger` não usado.
+
+  \- \*Arquivos tocados:\* `apps/api/src/{analytics/dashboard.service,crc/crc.service,crm/crm.service,finance/account.service,prosthetic/prosthetic.service,reports/report.service,return/return.service,treatment/treatment.service}.ts`. Commit separado da S45 (reparo isolado).
+
+  \- \*Decisões:\* commit \*\*separado\*\* (não bundla com a feature). Cast de tipo no `report` (não `new Uint8Array(content)`) p/ manter o Buffer em runtime — o teste S43 faz `(content as Buffer).toString("utf8")`. \*\*Lição:\* o gate de build vinha mascarado — `pnpm lint` é só eslint (não typa) e o turbo cacheia o build da api; rodar `nest build` com `deleteOutDir` (ou `tsc -p tsconfig.build.json --noEmit`) é o que pega esses erros. Conferir o build SEM cache ao fechar sessões de backend.\*
+
+  \- \*Verificação:\* `tsc -p tsconfig.build.json --noEmit` \*\*zerado\*\*; `pnpm build` \*\*4/4\*\*; `pnpm test` 236 pass (2 skip); `pnpm lint` 8/8; `format`/`audit` (0 high/critical; 1 moderate dev-only) verdes.
+
+\- \*\*2026-06-24 · S45a — Central de acessos multi-unidade: backend\*\*  ·  \*INÍCIO da FASE 5 (rede/franquia); S45 DIVIDIDA em S45a (esta) + S45b (seletor no web)\*
+
+  \- \*O que foi feito:\* um login navega entre as unidades AUTORIZADAS. \*\*Contexto de unidade ATIVA no access token\*\* (claim `unitId` opcional em `AccessTokenPayload` + `AuthenticatedUser`): o `login` escolhe a 1ª unidade autorizada (`UserUnit`, orderBy name) como padrão; o `refresh` \*\*preserva\*\* a unidade (o claim viaja no refresh token); `@ActiveUnitId()` expõe a unidade ativa p/ queries tenant+unit scoped downstream. Módulo \*\*`network`\*\*: `AccessService.listMyUnits` (só as unidades do usuário via `UserUnit`, tenant-scoped) e `AccessService.switchUnit` que \*\*REVALIDA no servidor\*\* que o `UserUnit(userId,unitId,tenantId)` existe → senão \*\*`ForbiddenException` (anti-IDOR)\*\*, e re-emite o par de tokens com a nova unidade (`AuthService.issueForStaff`). `AccessController` (`@SelfAccount`, só equipe — `assertStaff` nega paciente): `GET /network/units` + `POST /network/switch-unit`. Seed ganhou uma \*\*2ª unidade "Filial"\*\* + vínculo do revisor às duas (p/ a navegação ser demonstrável).
+
+  \- \*Arquivos tocados:\* `apps/api/src/auth/strategies/jwt.strategy.ts` (+`unitId` no payload/principal), `apps/api/src/auth/auth.service.ts` (login default unit + refresh preserva + `issueForStaff` + `defaultUnitId`), `apps/api/src/network/{access.service,access.controller,access.module}.ts` + `dto/switch-unit.dto.ts` (novos), `apps/api/src/common/decorators/active-unit.decorator.ts` (novo `@ActiveUnitId`), `apps/api/src/app.module.ts` (+AccessModule), `apps/api/prisma/seed.ts` (+2ª unidade + 2º UserUnit), testes `apps/api/test/{access.service.spec (4 casos),auth.service.spec (mock userUnit)}`. \*\*Sem migration\*\* (reusa `UserUnit`/`Unit` da S2). Sem dep nova.
+
+  \- \*Decisões:\* unidade ativa \*\*no JWT\*\* (não em sessão Redis) — viaja nos dois tokens; o switch re-emite o par e o refresh preserva o claim (sem schema de sessão novo). `switchUnit` é a \*\*revalidação server-side\*\* exigida pelo aceite (anti-IDOR): emitir token novo só após confirmar o `UserUnit`. Rotas via \*\*`@SelfAccount`\*\* (libera qualquer principal) + `assertStaff` no serviço (nega paciente 403) — evita acoplar a uma permission específica de papel. \*\*Escopo:\* o `@ActiveUnitId` deixa a unidade pronta p/ filtros tenant+unit; o retrofit de cada módulo p/ filtrar por unidade roda conforme a dimensão importar (começando pela agenda) — não reescrevi todos os serviços nesta sessão (§8).\* `AuthService` exporta `issueForStaff` (a autorização é da AccessService; a Auth só assina).
+
+  \- \*Verificação:\* `pnpm build` (4/4)/`test` (236 pass, +4; 2 skip)/`lint` (8/8)/`format`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local 5455/6395, re-seed 2 unidades): login traz \*\*`unitId` padrão\*\* no token (Filial); \*\*`GET /network/units`\*\* → Filial + Matriz (as 2 autorizadas); \*\*`switch-unit` p/ Filial\*\* → novo token com `unitId=demo-unit-2`; \*\*switch p/ unidade não-autorizada → 403\*\* (anti-IDOR); \*\*paciente em /network/units → 403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S45b\*\* — seletor de unidade no web (lista `GET /network/units`, troca via `switch-unit`, regrava os cookies httpOnly). Herdadas: retrofit de filtro por unidade nos módulos (agenda primeiro), `Professional`/`Room`, as de sempre.
+
+\- \*\*2026-06-24 · S45b — Central de acessos: seletor de unidade no web (FECHA a S45)\*\*
+
+  \- \*O que foi feito:\* o seletor de unidade no header da agenda. \*\*api-client:\* +`listMyUnits()`/`switchUnit(unitId)` + tipo `SwitchUnitResult` (TokenPair + unitId).\* `lib/session.ts` +`getActiveUnitId()` (decodifica o claim `unitId` do NOSSO cookie de access — base64 do payload, sem verificar assinatura, que o backend faz). `agenda/actions.ts` +`switchUnitAction` (chama `switchUnit` via BFF; em 403 → "sem acesso a essa unidade"; regrava os cookies httpOnly com o novo par via `setAuthCookies`; `revalidatePath("/","layout")`). `agenda/unit-switcher.tsx` (client `<select>` das unidades autorizadas; ao trocar, Server Action + `router.refresh`). `agenda/page.tsx` busca `listMyUnits` + `getActiveUnitId` e monta o `<UnitSwitcher>` no header.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (2 métodos + 1 tipo), `apps/web/lib/session.ts` (+`getActiveUnitId`), `apps/web/app/agenda/{actions.ts (+switchUnitAction),unit-switcher.tsx (novo),page.tsx}`. Sem backend novo (consome S45a), sem migration.
+
+  \- \*Decisões:\* a unidade ativa é lida do \*\*claim do cookie de access\*\* (decode base64 server-side — é o nosso próprio cookie; a verificação real é no backend a cada request). A troca regrava AMBOS os cookies (access+refresh) com o par novo do `switch-unit`. Seletor mora no header da agenda (não há menu/layout comum no web ainda — pendência herdada).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`build` (web compila `/agenda`)/`format`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/agenda` mostra o seletor com \*\*Filial + Matriz\*\* (ativa = Filial, a padrão); trocar p/ \*\*Matriz\*\* → ativa vira `demo-unit` e \*\*PERSISTE após reload\*\* (cookies regravados; a troca revalidou no servidor e re-emitiu a sessão).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S45 COMPLETA — abre a FASE 5 (rede/franquia).\*\* Próxima no backlog: \*\*S46 — Gestão + ranking de unidades\*\* (`network/units.service.ts`; dashboard consolidado + ranking entre unidades: faturamento/ocupação/conversão). Depende de S42+S45. Herdadas: retrofit de filtro por unidade nos módulos (agenda primeiro), navegação comum no web, `convertedPatientId` no fechamento do lead, `Professional`/`Room` dedicados, extrair `@vero/mobile-shared`, as de sempre.
 
 
 

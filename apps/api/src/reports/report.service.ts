@@ -138,7 +138,13 @@ export class ReportService {
 
     await this.prisma.report.update({
       where: { id: report.id },
-      data: { status: "READY", content, rowCount: rows.lines.length },
+      // Bytes do Prisma exige Uint8Array<ArrayBuffer>; Buffer (subclasse) serve em
+      // runtime, mas o @types/node atual não o casa no tipo — cast só de tipo.
+      data: {
+        status: "READY",
+        content: content as unknown as Uint8Array<ArrayBuffer>,
+        rowCount: rows.lines.length,
+      },
     });
   }
 

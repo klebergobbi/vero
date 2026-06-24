@@ -67,7 +67,11 @@ export class ReturnService {
     return this.prisma.returnAlert.findMany({
       where: scope.where<Prisma.ReturnAlertWhereInput>(
         status
-          ? { status: status as Prisma.ReturnAlertWhereInput["status"] }
+          ? {
+              status: status as NonNullable<
+                Prisma.ReturnAlertWhereInput["status"]
+              >,
+            }
           : {},
       ),
       orderBy: { dueDate: "asc" },

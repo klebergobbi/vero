@@ -59,10 +59,18 @@ export class AccountService {
     const accounts = await this.prisma.account.findMany({
       where: scope.where<Prisma.AccountWhereInput>({
         ...(filter.type
-          ? { type: filter.type as Prisma.AccountWhereInput["type"] }
+          ? {
+              type: filter.type as NonNullable<
+                Prisma.AccountWhereInput["type"]
+              >,
+            }
           : {}),
         ...(filter.status
-          ? { status: filter.status as Prisma.AccountWhereInput["status"] }
+          ? {
+              status: filter.status as NonNullable<
+                Prisma.AccountWhereInput["status"]
+              >,
+            }
           : {}),
       }),
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],

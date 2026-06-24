@@ -79,7 +79,7 @@ export class CrcService {
             tenantId,
             patientId: a.patientId,
             type: "RETURN",
-            priority: TYPE_PRIORITY.RETURN,
+            priority: TYPE_PRIORITY.RETURN ?? 10,
             sourceAlertId: a.id,
             dueDate: a.dueDate,
             ...(a.reason ? { notes: a.reason } : {}),
@@ -106,7 +106,7 @@ export class CrcService {
     const scope = new TenantScope(tenantId);
     return this.prisma.cRCTask.findMany({
       where: scope.where<Prisma.CRCTaskWhereInput>({
-        status: status as Prisma.CRCTaskWhereInput["status"],
+        status: status as NonNullable<Prisma.CRCTaskWhereInput["status"]>,
       }),
       orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { createdAt: "asc" }],
       select: this.taskSelect(),

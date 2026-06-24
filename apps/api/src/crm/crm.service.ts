@@ -114,7 +114,11 @@ export class CrmService {
     const scope = new TenantScope(tenantId);
     return this.prisma.cRMLead.findMany({
       where: scope.where<Prisma.CRMLeadWhereInput>(
-        status ? { status: status as Prisma.CRMLeadWhereInput["status"] } : {},
+        status
+          ? {
+              status: status as NonNullable<Prisma.CRMLeadWhereInput["status"]>,
+            }
+          : {},
       ),
       orderBy: { createdAt: "desc" },
       select: LEAD_SELECT,
@@ -142,7 +146,9 @@ export class CrmService {
     return this.prisma.cRMLead.update({
       where: { id },
       data: {
-        status: input.status as Prisma.CRMLeadUpdateInput["status"],
+        status: input.status as NonNullable<
+          Prisma.CRMLeadUpdateInput["status"]
+        >,
         ...(input.status === "CLOSED" && input.valueCents
           ? { valueCents: input.valueCents }
           : {}),

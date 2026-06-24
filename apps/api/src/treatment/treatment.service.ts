@@ -20,7 +20,7 @@ export class TreatmentService {
   /** Gera o plano a partir de um orçamento APROVADO (1 por orçamento). */
   async generateFromBudget(tenantId: string, budgetId: string) {
     const scope = new TenantScope(tenantId);
-    const budget = await this.prisma.budget.findFirst({
+    const budgetRow = await this.prisma.budget.findFirst({
       where: scope.where<Prisma.BudgetWhereInput>({
         id: budgetId,
         deletedAt: null,
@@ -35,7 +35,7 @@ export class TreatmentService {
         },
       },
     });
-    scope.ensureOwned(budget); // 403 anti-IDOR
+    const budget = scope.ensureOwned(budgetRow); // 403 anti-IDOR
 
     if (budget.status !== "APPROVED") {
       throw new BadRequestException(
@@ -124,7 +124,7 @@ export class TreatmentService {
     input: { notes?: string; performedAt?: string },
   ) {
     const scope = new TenantScope(tenantId);
-    const item = await this.prisma.treatmentItem.findFirst({
+    const itemRow = await this.prisma.treatmentItem.findFirst({
       where: scope.where<Prisma.TreatmentItemWhereInput>({ id: itemId }),
       select: {
         id: true,
@@ -133,7 +133,7 @@ export class TreatmentService {
         doneCount: true,
       },
     });
-    scope.ensureOwned(item); // 403 anti-IDOR
+    const item = scope.ensureOwned(itemRow); // 403 anti-IDOR
 
     if (item.doneCount >= item.quantity) {
       throw new ConflictException("Item já concluído.");

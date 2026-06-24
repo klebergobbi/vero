@@ -87,7 +87,11 @@ export class ProstheticService {
     const orders = await this.prisma.prostheticOrder.findMany({
       where: scope.where<Prisma.ProstheticOrderWhereInput>(
         status
-          ? { status: status as Prisma.ProstheticOrderWhereInput["status"] }
+          ? {
+              status: status as NonNullable<
+                Prisma.ProstheticOrderWhereInput["status"]
+              >,
+            }
           : {},
       ),
       orderBy: { createdAt: "desc" },

@@ -73,6 +73,10 @@ model Tenant {
   accounts         Account[]
   cashFlows        CashFlow[]
   bankReconciliations BankReconciliation[]
+  inventories      Inventory[]
+  items            Item[]
+  batches          Batch[]
+  stockMovements   StockMovement[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -1404,4 +1408,82 @@ model BankReconciliation {
 enum ReconcileMethod {
   AUTO
   MANUAL
+}
+
+/// Estoque/almoxarifado (§6/S39): container de insumos do tenant.
+model Inventory {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  Item[]
+
+  @@index([tenantId])
+}
+
+/// Insumo (§6/S39). `quantity` = estoque atual (cache mantido pelos movimentos);
+/// `minQuantity` = mínimo p/ alerta de reposição. Estoque por lotes (Batch).
+model Item {
+  id          String   @id @default(cuid())
+  tenantId    String
+  inventoryId String
+  name        String
+  unit        String
+  quantity    Int      @default(0)
+  minQuantity Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory Inventory       @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  batches   Batch[]
+  movements StockMovement[]
+
+  @@index([tenantId])
+  @@index([inventoryId])
+}
+
+/// Lote de um insumo (§6/S39): controla validade e custo. `quantity` = restante.
+model Batch {
+  id        String    @id @default(cuid())
+  tenantId  String
+  itemId    String
+  code      String?
+  quantity  Int
+  costCents Int       @default(0)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([itemId])
+}
+
+/// Movimento de estoque (§6/S39): entrada (IN) ou saída (OUT). `procedureId` liga
+/// a saída a um procedimento (baixa por procedimento, S16).
+model StockMovement {
+  id          String            @id @default(cuid())
+  tenantId    String
+  itemId      String
+  type        StockMovementType
+  quantity    Int
+  reason      String?
+  procedureId String?
+  createdAt   DateTime          @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([itemId])
+}
+
+enum StockMovementType {
+  IN
+  OUT
 }

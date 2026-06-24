@@ -46,6 +46,7 @@ import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { CrcModule } from "./crc/crc.module";
 import { DocumentModule } from "./document/document.module";
 import { FinanceModule } from "./finance/finance.module";
+import { InventoryModule } from "./inventory/inventory.module";
 import { ProstheticModule } from "./prosthetic/prosthetic.module";
 import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
@@ -152,6 +153,7 @@ import { RedisModule } from "./redis/redis.module";
     CrcModule,
     ProstheticModule,
     FinanceModule,
+    InventoryModule,
     MeModule,
     WhatsAppModule,
     PushModule,

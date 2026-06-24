@@ -918,7 +918,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S39 — Estoque
+\#### \[ ] S39 — Estoque  ·  \*DIVIDIDA: \[x] S39a (backend: Inventory/Item/Batch/StockMovement + entrada/saída FIFO + alertas) · \[ ] S39b (tela web)\*
 
 \*\*Depende de:\*\* S16
 
@@ -1977,6 +1977,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/caixa` → cards Entradas/Saídas/Saldo; trocar p/ \*\*junho/2026\*\* mostra os movimentos; \*\*"Importar pagamentos"\*\* → mensagem de importados; \*\*lançar manual\*\* "Produtos de limpeza R$ 45,90" (saída) → aparece; \*\*"Conciliar"\*\* → badge \*\*"conciliado · MANUAL"\*\* (screenshot: Saídas R$ 195,90 / Saldo -R$ 195,90, 2 movimentos conciliados MANUAL).\*
 
   \- \*Pendências p/ próxima:\* \*\*S38 COMPLETA.\*\* Próxima no backlog: \*\*S39 — Estoque\*\* (`Inventory`/`Item`/`StockMovement`/`Batch`; `inventory/{module,service}.ts`; entrada/saída, baixa por procedimento, alerta de validade e de estoque mínimo). Depende de S16. Herdadas: filtro diário no caixa, hook em tempo real S20→caixa, importar contas PAID p/ o caixa, navegação comum web (agenda/.../financeiro/caixa), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S39a — Estoque: backend\*\*  ·  \*S39 DIVIDIDA em S39a (esta) + S39b (tela web)\*
+
+  \- \*O que foi feito:\* controle de insumos com lotes. Schema: \*\*`Inventory`\*\* (almoxarifado) → \*\*`Item`\*\* (insumo: `quantity` cache do estoque, `minQuantity` p/ alerta, unit) → \*\*`Batch`\*\* (lote: quantity restante, `costCents`, `expiresAt`) + \*\*`StockMovement`\*\* (IN/OUT, `procedureId?` = baixa por procedimento S16) + enum + back-relations + migration aditiva. `InventoryService` tenant-scoped (anti-IDOR): createInventory/listInventories, createItem (resolve almoxarifado dado OU cria default "Principal"), listItems (com flag `isLow` = quantity≤minQuantity), \*\*`entrada`\*\* (`$transaction`: cria Batch + StockMovement IN + `Item.quantity += q`), \*\*`saida`\*\* (`$transaction`: **consome lotes por validade FIFO** (`expiresAt asc`), StockMovement OUT + `quantity -= q`; estoque insuficiente → 400), `movements` (histórico), \*\*`alerts`\*\* (estoque mínimo via `fields.minQuantity` + lotes vencendo em ≤30 dias com quantidade). `InventoryController` em `/inventory` (`catalog:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+4 modelos +enum +back-relations) + migration `s39_inventory` (aditiva), `apps/api/src/inventory/{inventory.service,inventory.controller,inventory.module}.ts` + `dto/inventory.dto.ts` (novos), `apps/api/src/app.module.ts` (+InventoryModule), teste `apps/api/test/inventory.service.spec.ts` (4 casos). Sem dep nova.
+
+  \- \*Decisões:\* `Item.quantity` é \*\*cache\*\* mantido em transação (rápido p/ alerta/listagem) + lotes guardam validade/custo. Saída \*\*FIFO por validade\*\* (consome o que vence primeiro — reduz perda). Almoxarifado default "Principal" auto-criado (sem fricção). Permissões reusam \*\*`catalog:*`\*\* (insumos = cadastro — sem re-seed). Alerta de validade na leitura (janela 30 dias, só lotes com quantidade > 0). Comparação campo-a-campo `quantity ≤ minQuantity` via `prisma.item.fields.minQuantity` (Prisma field reference).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (209 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): criar insumo (min 5) → qtd 0; entrada LOTE-A 3cx (vence 10d) → qtd 3 \*\*isLow True\*\*; entrada LOTE-B 10cx (vence 1a) → qtd 13 \*\*isLow False\*\*; \*\*saída 5 por procedimento\*\* → qtd 8, \*\*FIFO: LOTE-A zerou (vence antes), LOTE-B=8\*\*; movimentos OUT(proc)/IN/IN; saída 100 → \*\*400\*\* (insuficiente); \*\*alerta de mínimo\*\* (após baixar p/ 4≤5) lista o item; \*\*alerta de validade\*\* (novo lote vencendo em 7d com 20un) lista o lote; anti-IDOR item alheio → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S39b\*\* — tela web `/estoque` (lista de insumos com estoque atual + destaque dos baixos; botões Entrada/Saída por item; painel de alertas estoque mínimo + validade; criar insumo). api-client +métodos. Herdadas: vincular saída ao procedimento na UI (seletor), múltiplos almoxarifados na UI, navegação comum web, as de sempre.
 
 
 

@@ -942,7 +942,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S41 — Metas  ·  \*DIVIDIDA: \[x] S41a (backend: Goal + realizado vs meta) · \[ ] S41b (tela web)\*
+\#### \[x] S41 — Metas  ·  \*DIVIDIDA: \[x] S41a (backend: Goal + realizado vs meta) · \[x] S41b (tela web)\*
 
 \*\*Depende de:\*\* S42 (ou paralelo)
 
@@ -2037,6 +2037,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (218 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 Payment de R$80 na S20): meta \*\*RECEITA R$200\*\* → realizado \*\*R$80 (= soma dos pagamentos) = 40%\*\*; meta \*\*CONSULTAS 50\*\* → realizado \*\*5 (consultas não-canceladas) = 10%\*\*; período inválido (início≥fim) → \*\*400\*\*; profissional inválido → \*\*400\*\*; anti-IDOR deletar meta alheia → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S41b\*\* — tela web `/metas` (definir meta: escopo clínica/profissional + métrica + alvo + período; acompanhamento com \*\*barra de progresso meta vs realizado\*\* + %). api-client +métodos. Herdadas: meta de receita por profissional (precisa link Payment→profissional), mais métricas (conversão/ocupação) quando o dashboard S42 existir, navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S41b — Metas: tela web (FECHA a S41)\*\*
+
+  \- \*O que foi feito:\* UI de metas. \*\*api-client:\* +`listGoals()`/`createGoal(input)`/`deleteGoal(id)` + tipo `GoalProgress`.\* Página \*\*`/metas`\*\* (Server Component, metas + profissionais) + `goals-view.tsx` (client): form \*\*"Nova meta"\*\* (escopo Clínica/profissional + métrica Faturamento(R$)/Consultas(nº) + alvo + período from/to), lista de metas com \*\*barra de progresso\*\* (largura = min(100,percent); verde se ≥100%) + "realizado de meta (percent%)" + Remover. Valor formatado conforme a métrica (R$ p/ REVENUE, número p/ APPOINTMENTS).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (3 métodos + 1 tipo), `apps/web/app/metas/{page.tsx,actions.ts,goals-view.tsx}` (novos). Sem backend novo (consome S41a), sem migration.
+
+  \- \*Decisões:\* alvo em \*\*R$→centavos\*\* p/ REVENUE, inteiro p/ APPOINTMENTS (conversão no client conforme a métrica). Barra de progresso clampada a 100%, verde ao atingir. Página standalone `/metas`. \*Nota:\* `toLocaleDateString` exibe o período em fuso local (UTC-3) — uma data 01/06Z aparece como 31/05; cosmético.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/metas` mostra as metas da S41a com \*\*barras de progresso\*\* — \*\*Faturamento R$ 80,00 de R$ 200,00 (40%)\*\* e \*\*Consultas 5 de 50 (10%)\*\*; criar nova meta de Consultas alvo 5 → \*\*"5 de 5 (100%)"\*\* (barra verde) (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S41 COMPLETA.\*\* Próxima no backlog: \*\*S42 — Dashboard analítico\*\* (`analytics/dashboard.service.ts` agrega + cache Redis; tela web com gráficos: ocupação, receita, faturamento, conversão; carrega <2s via cache, invalidado por eventos). Depende de S6+S19. Herdadas: meta de receita por profissional, mais métricas de meta, navegação comum web (agenda/.../financeiro/caixa/estoque/comissoes/metas), `Professional.specialties`, as de sempre.
 
 
 

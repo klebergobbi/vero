@@ -156,6 +156,19 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Meta com progresso (§S41). */
+export interface GoalProgress {
+  id: string;
+  professionalId: string | null;
+  metric: string;
+  targetValue: number;
+  periodStart: string;
+  periodEnd: string;
+  professional: { name: string } | null;
+  realized: number;
+  percent: number;
+}
+
 /** Comissões (§S40). */
 export interface CommissionRuleItem {
   id: string;
@@ -743,6 +756,30 @@ export function createApiClient(opts: ApiClientOptions) {
       request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
         method: "PATCH",
         body: JSON.stringify({ userId }),
+        accessToken,
+      }),
+
+    // --- Metas (§S41, gated billing:read|write) ---
+
+    listGoals: (): Promise<GoalProgress[]> =>
+      request<GoalProgress[]>(baseUrl, "/goals", { accessToken }),
+
+    createGoal: (input: {
+      professionalId?: string;
+      metric: string;
+      targetValue: number;
+      periodStart: string;
+      periodEnd: string;
+    }): Promise<GoalProgress> =>
+      request<GoalProgress>(baseUrl, "/goals", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    deleteGoal: (id: string): Promise<{ id: string }> =>
+      request<{ id: string }>(baseUrl, `/goals/${id}`, {
+        method: "DELETE",
         accessToken,
       }),
 

@@ -51,6 +51,7 @@ import { FinanceModule } from "./finance/finance.module";
 import { GoalModule } from "./goal/goal.module";
 import { InventoryModule } from "./inventory/inventory.module";
 import { ProstheticModule } from "./prosthetic/prosthetic.module";
+import { ReportModule } from "./reports/report.module";
 import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
@@ -160,6 +161,7 @@ import { RedisModule } from "./redis/redis.module";
     CommissionModule,
     GoalModule,
     AnalyticsModule,
+    ReportModule,
     MeModule,
     WhatsAppModule,
     PushModule,

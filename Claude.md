@@ -968,7 +968,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S43 — Engine de relatórios
+\#### \[ ] S43 — Engine de relatórios  ·  \*DIVIDIDA: \[x] S43a (backend: Report + fila report-builder + CSV/PDF) · \[ ] S43b (tela web)\*
 
 \*\*Depende de:\*\* S42
 
@@ -2073,6 +2073,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/dashboard` → cards \*\*Receita R$ 80,00 · Faturamento R$ 450,00 · Consultas 5 · Conversão 100% (4 aprov./0 recus.)\*\* — \*\*batem com a S42a/banco\*\*; gráfico de barras com 07/26 (consultas) e 08/26 (receita R$80); carregou em ~1.9s (via cache) (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S42 COMPLETA.\*\* Próxima no backlog: \*\*S43 — Engine de relatórios\*\* (`reports/report.service.ts`; fila `report-builder` p/ pesados em background; export CSV/PDF; relatório de faturamento e de faltas/desmarcações com filtro de período). Depende de S42. Herdadas: auto-invalidar cache do dashboard em eventos, gráficos com Recharts, seletor de período no dashboard, navegação comum web (agenda/.../estoque/comissoes/metas/dashboard), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S43a — Engine de relatórios: backend (fila + CSV/PDF)\*\*  ·  \*S43 DIVIDIDA em S43a (esta) + S43b (tela web)\*
+
+  \- \*O que foi feito:\* catálogo de relatórios exportáveis gerados em background. Schema: \*\*`Report`\*\* (type BILLING/NO_SHOW, format CSV/PDF, período, status PENDING/READY/FAILED, `content Bytes?` = arquivo gerado, rowCount, error) + 3 enums + back-relation Tenant + migration aditiva. `ReportService` tenant-scoped (anti-IDOR): `request` (cria PENDING + \*\*enfileira\*\* na fila `report-builder`), `build` (worker: consulta os dados do período + gera \*\*CSV\*\* (células com aspas, `;`) ou \*\*PDF\*\* (pdfkit); idempotente já-READY→no-op), `list` (catálogo), `get` (status + \*\*URL assinada\*\* HMAC+exp 5min quando READY), `serveFile` (valida token → bytes com content-type CSV/PDF). \*\*Builders:\* BILLING = pagamentos do período (Data/Paciente/Valor + TOTAL); NO_SHOW = consultas NO_SHOW/CANCELLED (Data/Paciente/Profissional/Situação).\* Fila \*\*`report-builder`\*\* (`ReportBuilderProcessor` WorkerHost; falha → retry/backoff → \*\*DLQ\*\* + Report FAILED). `ReportController` (`billing:read|write`) + `GET /reports/file/:token` (\*\*`@Public`\*\*, stream attachment).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`Report` +3 enums) + migration `s43_report` (aditiva), `apps/api/src/reports/{report.service,report-builder,report.controller,report.module,report.constants}.ts` + `dto/report.dto.ts` (novos), `apps/api/src/app.module.ts` (+ReportModule), teste `apps/api/test/report.service.spec.ts` (5 casos). Sem dep nova.
+
+  \- \*Decisões:\* \*\*geração em background\*\* (fila) p/ relatórios pesados; `content` Bytes no DB (upload ao DO Spaces = troca de produção). \*\*BUG pego ao vivo:\* import CIRCULAR `report.service` ↔ `report-builder` (a service importava o nome da fila do builder; o builder importava a service) deixava `ReportService` undefined na DI → API não subia. Corrigido extraindo as constantes da fila p/ `report.constants.ts`. Lição: nome de fila compartilhado entre service e processor vai em arquivo próprio.\* CSV com `;` (Excel BR) + células entre aspas. Permissões reusam `billing:*`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (227 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455 + Redis): \*\*FATURAMENTO CSV\*\* → PENDING → worker → \*\*READY (2 linhas)\*\* → download \*\*200 text/csv\*\* com "14/08/2026; Paciente Demo; R$ 80,00" + TOTAL; \*\*FALTAS PDF\*\* → READY → download \*\*200 application/pdf (%PDF-1.3)\*\*; catálogo lista; anti-IDOR relatório alheio → \*\*403\*\*; paciente em POST → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S43b\*\* — tela web `/relatorios` (escolher tipo Faturamento/Faltas + formato CSV/PDF + período → solicitar; catálogo com status + botão Baixar quando READY; refresh do status). api-client +métodos. Herdadas: upload do conteúdo ao DO Spaces, mais tipos de relatório, navegação comum web, as de sempre.
 
 
 

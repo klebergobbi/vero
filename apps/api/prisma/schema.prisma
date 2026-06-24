@@ -71,6 +71,8 @@ model Tenant {
   crcTasks         CRCTask[]
   prostheticOrders ProstheticOrder[]
   accounts         Account[]
+  cashFlows        CashFlow[]
+  bankReconciliations BankReconciliation[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -712,6 +714,7 @@ model Payment {
   reconciliation Reconciliation?
   invoice        Invoice?
   receipt        Receipt?
+  cashFlow       CashFlow?
 
   @@index([tenantId])
 }
@@ -1344,4 +1347,61 @@ enum AccountStatus {
   OPEN
   PAID
   CANCELLED
+}
+
+/// Movimento de caixa (§6/S38): ledger unificado de entradas/saídas. Origem
+/// MANUAL (lançado à mão), PAYMENT (importado de um pagamento Asaas da S20 —
+/// `paymentId @unique` deduplica) ou ACCOUNT (de uma conta da S37). A conciliação
+/// (BankReconciliation) marca o movimento como casado (auto da S20 ou manual).
+model CashFlow {
+  id          String        @id @default(cuid())
+  tenantId    String
+  direction   CashDirection
+  amountCents Int
+  date        DateTime
+  category    String
+  description String
+  source      CashSource    @default(MANUAL)
+  paymentId   String?       @unique
+  accountId   String?
+  createdAt   DateTime      @default(now())
+
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payment        Payment?            @relation(fields: [paymentId], references: [id])
+  reconciliation BankReconciliation?
+
+  @@index([tenantId])
+  @@index([tenantId, date])
+}
+
+enum CashDirection {
+  IN
+  OUT
+}
+
+enum CashSource {
+  MANUAL
+  PAYMENT
+  ACCOUNT
+}
+
+/// Conciliação bancária (§6/S38): registra que um movimento de caixa foi casado a
+/// um pagamento — automaticamente (importado da S20) ou manualmente pela equipe.
+model BankReconciliation {
+  id           String          @id @default(cuid())
+  tenantId     String
+  cashFlowId   String          @unique
+  method       ReconcileMethod
+  reference    String?
+  reconciledAt DateTime        @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cashFlow CashFlow @relation(fields: [cashFlowId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+enum ReconcileMethod {
+  AUTO
+  MANUAL
 }

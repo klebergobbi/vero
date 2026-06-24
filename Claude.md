@@ -906,7 +906,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S38 — Fluxo de caixa + conciliação
+\#### \[ ] S38 — Fluxo de caixa + conciliação  ·  \*DIVIDIDA: \[x] S38a (backend: CashFlow/BankReconciliation + sync auto + manual) · \[ ] S38b (tela web)\*
 
 \*\*Depende de:\*\* S37, S20
 
@@ -1953,6 +1953,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/financeiro` → cards "A pagar (aberto)"/"A receber (aberto)" → lançar "Compra de resina · Material · R$ 350,50" (a pagar, venc 10/07) → aparece na lista → \*\*"Dar baixa" → "Pago"\*\* (sumiu dos botões); o "A receber" segue "Em aberto" com Dar baixa/Cancelar (screenshot). \*Nota:\* o `toLocaleString` BRL usa espaço não-quebrável (`R$\\u00a0350,50`) — um assert por "R$ 350,50" com espaço normal dá falso-negativo; o screenshot confirma o valor.\*
 
   \- \*Pendências p/ próxima:\* \*\*S37 COMPLETA.\*\* Próxima no backlog: \*\*S38 — Fluxo de caixa + conciliação\*\* (`CashFlow`/`BankReconciliation`; `finance/cashflow.service.ts`; visão diária/mensal de caixa; conciliar lançamento com pagamento — auto da S20 + manual). Depende de S37+S20. Herdadas: navegação comum web (agenda/.../financeiro), conciliação das contas com pagamentos S20, `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-23 · S38a — Fluxo de caixa + conciliação: backend\*\*  ·  \*S38 DIVIDIDA em S38a (esta) + S38b (tela web)\*
+
+  \- \*O que foi feito:\* ledger de caixa + conciliação bancária. Schema: \*\*`CashFlow`\*\* (ledger unificado: `direction` IN/OUT, amountCents, date, category, description, `source` MANUAL/PAYMENT/ACCOUNT, `paymentId? @unique` = dedupe do pagamento S20, accountId?) + \*\*`BankReconciliation`\*\* (`cashFlowId @unique`, `method` AUTO/MANUAL, reference?, reconciledAt) + 3 enums + relações (CashFlow→Payment, Payment.cashFlow back-relation; Tenant) + migration aditiva. `CashFlowService` tenant-scoped (anti-IDOR): `record` (movimento MANUAL), \*\*`syncPayments`\*\* (conciliação \*\*AUTO\*\*: importa os `Payment` da S20 ainda sem caixa → CashFlow IN + BankReconciliation AUTO; idempotente por `paymentId @unique`, P2002→skip), \*\*`reconcile`\*\* (conciliação \*\*MANUAL\*\*: BankReconciliation MANUAL; já conciliado → 409), `list` (período, com flag `reconciled`+method), `summary` (\*\*entradas/saídas/saldo\*\* do período via `groupBy` — visão diária/mensal pelo from/to). `CashFlowController` em `/cashflow` (`billing:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`CashFlow` +`BankReconciliation` +3 enums +CashFlow↔Payment +Tenant rels) + migration `s38_cashflow` (aditiva), `apps/api/src/finance/{cashflow.service,cashflow.controller}.ts` + `dto/cashflow.dto.ts` (novos), `apps/api/src/finance/finance.module.ts` (+CashFlow*), teste `apps/api/test/cashflow.service.spec.ts` (7 casos). Sem dep nova.
+
+  \- \*Decisões:\* "auto da S20" = \*\*`syncPayments` pull-based\*\* (importa os pagamentos conciliados da S20 para o caixa, idempotente) — desacopla do fluxo do webhook S20 (um hook em tempo real é melhoria futura). `BankReconciliation` é distinto do `Reconciliation` da S20 (§6 lista os dois). Permissões reusam `billing:*`. Atraso/saldo calculados na leitura. Select extraído em const `FLOW_SELECT`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (205 pass, +7; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 Payment da S20): \*\*sync AUTO\*\* → imported 1 (CashFlow IN R$80 conciliado AUTO); \*\*sync de novo → 0\*\* (idempotente); \*\*lançamento MANUAL\*\* OUT R$150 (não conciliado); lista → IN 80 PAYMENT/AUTO + OUT 150 MANUAL; \*\*summary\*\* → entradas 80 / saídas 150 / saldo -70; \*\*conciliação MANUAL\*\* da saída → reconciled MANUAL; re-reconciliar → \*\*409\*\*; \*\*período\*\* (junho: saídas 150/saldo -150; julho vazio: 0); anti-IDOR mov alheio → \*\*403\*\*; amount 0 → \*\*400\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S38b\*\* — tela web `/caixa` (ou aba do financeiro): visão diária/mensal (filtro de período) com entradas/saídas/saldo; lista de movimentos com badge de conciliado (AUTO/MANUAL); botões "Importar pagamentos" (sync), "Conciliar" (manual) e lançar movimento manual. api-client +métodos. Herdadas: hook em tempo real do S20→caixa, importar contas PAID (S37) p/ o caixa, navegação comum web, as de sempre.
 
 
 

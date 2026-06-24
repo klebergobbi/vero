@@ -156,6 +156,31 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Estoque (§S39). */
+export interface InventoryItemBase {
+  id: string;
+  inventoryId: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  minQuantity: number;
+  createdAt: string;
+}
+export interface InventoryItem extends InventoryItemBase {
+  isLow: boolean;
+}
+export interface ExpiringBatch {
+  id: string;
+  code: string | null;
+  quantity: number;
+  expiresAt: string | null;
+  item: { id: string; name: string; unit: string };
+}
+export interface InventoryAlerts {
+  lowStock: InventoryItemBase[];
+  expiring: ExpiringBatch[];
+}
+
 /** Movimento de caixa (§S38). */
 export interface CashFlowEntry {
   id: string;
@@ -686,6 +711,45 @@ export function createApiClient(opts: ApiClientOptions) {
       request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
         method: "PATCH",
         body: JSON.stringify({ userId }),
+        accessToken,
+      }),
+
+    // --- Estoque (§S39, gated catalog:read|write) ---
+
+    listInventoryItems: (): Promise<InventoryItem[]> =>
+      request<InventoryItem[]>(baseUrl, "/inventory/items", { accessToken }),
+
+    inventoryAlerts: (): Promise<InventoryAlerts> =>
+      request<InventoryAlerts>(baseUrl, "/inventory/alerts", { accessToken }),
+
+    createInventoryItem: (input: {
+      name: string;
+      unit: string;
+      minQuantity?: number;
+    }): Promise<InventoryItem> =>
+      request<InventoryItem>(baseUrl, "/inventory/items", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    stockIn: (
+      itemId: string,
+      input: { quantity: number; costCents?: number; expiresAt?: string },
+    ): Promise<InventoryItem> =>
+      request<InventoryItem>(baseUrl, `/inventory/items/${itemId}/entrada`, {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    stockOut: (
+      itemId: string,
+      input: { quantity: number; reason?: string; procedureId?: string },
+    ): Promise<InventoryItem> =>
+      request<InventoryItem>(baseUrl, `/inventory/items/${itemId}/saida`, {
+        method: "POST",
+        body: JSON.stringify(input),
         accessToken,
       }),
 

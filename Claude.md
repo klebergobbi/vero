@@ -918,7 +918,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S39 — Estoque  ·  \*DIVIDIDA: \[x] S39a (backend: Inventory/Item/Batch/StockMovement + entrada/saída FIFO + alertas) · \[ ] S39b (tela web)\*
+\#### \[x] S39 — Estoque  ·  \*DIVIDIDA: \[x] S39a (backend: Inventory/Item/Batch/StockMovement + entrada/saída FIFO + alertas) · \[x] S39b (tela web)\*
 
 \*\*Depende de:\*\* S16
 
@@ -1989,6 +1989,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (209 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): criar insumo (min 5) → qtd 0; entrada LOTE-A 3cx (vence 10d) → qtd 3 \*\*isLow True\*\*; entrada LOTE-B 10cx (vence 1a) → qtd 13 \*\*isLow False\*\*; \*\*saída 5 por procedimento\*\* → qtd 8, \*\*FIFO: LOTE-A zerou (vence antes), LOTE-B=8\*\*; movimentos OUT(proc)/IN/IN; saída 100 → \*\*400\*\* (insuficiente); \*\*alerta de mínimo\*\* (após baixar p/ 4≤5) lista o item; \*\*alerta de validade\*\* (novo lote vencendo em 7d com 20un) lista o lote; anti-IDOR item alheio → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S39b\*\* — tela web `/estoque` (lista de insumos com estoque atual + destaque dos baixos; botões Entrada/Saída por item; painel de alertas estoque mínimo + validade; criar insumo). api-client +métodos. Herdadas: vincular saída ao procedimento na UI (seletor), múltiplos almoxarifados na UI, navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S39b — Estoque: tela web (FECHA a S39)\*\*
+
+  \- \*O que foi feito:\* UI do estoque. \*\*api-client:\* +`listInventoryItems()`/`inventoryAlerts()`/`createInventoryItem(input)`/`stockIn(itemId,input)`/`stockOut(itemId,input)` + tipos `InventoryItem`/`InventoryItemBase`/`ExpiringBatch`/`InventoryAlerts`.\* Página \*\*`/estoque`\*\* (Server Component, itens + alertas) + `inventory-list.tsx` (client): \*\*painel de Alertas\*\* (estoque baixo + validade próxima, âmbar); form \*\*"Novo insumo"\*\* (nome + unidade + mínimo); lista de insumos com \*\*estoque atual\*\* (baixos destacados em âmbar) + \*\*Entrada\*\* (qtd + validade opcional, verde) e \*\*Saída\*\* (qtd, vermelho) inline por item. Cada ação devolve itens+alertas atualizados.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 4 tipos), `apps/web/app/estoque/{page.tsx,actions.ts,inventory-list.tsx}` (novos). Sem backend novo (consome S39a), sem migration.
+
+  \- \*Decisões:\* Entrada/Saída \*\*inline por item\*\* (qtd + data de validade na entrada) — fluxo rápido de almoxarifado. Baixa por procedimento (seletor) e múltiplos almoxarifados ficam como melhoria. Página standalone `/estoque`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/estoque` → \*\*painel de Alertas\*\* (estoque baixo Gaze/Luva + validade próxima Anestesico LOTE-VENC, dados da S39a); criar insumo "Gaze esteril" (mín 3) → \*\*Entrada 10 → "10 pct"\*\* → \*\*Saída 8 → "2 pct"\*\* (baixo, borda âmbar) (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S39 COMPLETA.\*\* Próxima no backlog: \*\*S40 — Comissões\*\* (`Commission`; `commission/service.ts`; calcular comissão por procedimento executado/pago, regra por procedimento/percentual; relatório por profissional e período). Depende de S30+S20. Herdadas: baixa por procedimento na UI do estoque (seletor), múltiplos almoxarifados, navegação comum web (agenda/.../financeiro/caixa/estoque), `Professional.specialties`, as de sempre.
 
 
 

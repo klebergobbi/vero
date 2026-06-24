@@ -77,6 +77,8 @@ model Tenant {
   items            Item[]
   batches          Batch[]
   stockMovements   StockMovement[]
+  commissionRules  CommissionRule[]
+  commissions      Commission[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -143,6 +145,8 @@ model User {
   executions     ExecutionLog[] @relation("ExecutionPerformer")
   signedDocuments ClinicalDocument[] @relation("DocumentSigner")
   assignedCrcTasks CRCTask[] @relation("CRCAssignee")
+  commissionRules CommissionRule[] @relation("CommissionRuleProfessional")
+  commissions    Commission[]     @relation("CommissionProfessional")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1486,4 +1490,52 @@ model StockMovement {
 enum StockMovementType {
   IN
   OUT
+}
+
+/// Regra de comissão (§6/S40): percentual de um profissional sobre um procedimento
+/// (`procedureId` null = regra GERAL do profissional, usada como fallback).
+model CommissionRule {
+  id             String   @id @default(cuid())
+  tenantId       String
+  professionalId String
+  procedureId    String?
+  percent        Int
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional User   @relation("CommissionRuleProfessional", fields: [professionalId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, professionalId])
+}
+
+/// Comissão calculada (§6/S40): de um procedimento executado/pago. `baseCents` é o
+/// valor-base; `amountCents = base * percent / 100`. `status` p/ controle de repasse.
+model Commission {
+  id             String           @id @default(cuid())
+  tenantId       String
+  professionalId String
+  procedureId    String?
+  description    String
+  baseCents      Int
+  percent        Int
+  amountCents    Int
+  status         CommissionStatus @default(PENDING)
+  reference      String?
+  date           DateTime
+  paidAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional User   @relation("CommissionProfessional", fields: [professionalId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, professionalId])
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
 }

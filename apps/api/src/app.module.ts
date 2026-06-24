@@ -43,6 +43,7 @@ import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
 import { AlignerModule } from "./aligner/aligner.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
+import { CommissionModule } from "./commission/commission.module";
 import { CrcModule } from "./crc/crc.module";
 import { DocumentModule } from "./document/document.module";
 import { FinanceModule } from "./finance/finance.module";
@@ -154,6 +155,7 @@ import { RedisModule } from "./redis/redis.module";
     ProstheticModule,
     FinanceModule,
     InventoryModule,
+    CommissionModule,
     MeModule,
     WhatsAppModule,
     PushModule,

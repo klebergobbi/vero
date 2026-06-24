@@ -930,7 +930,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S40 — Comissões
+\#### \[ ] S40 — Comissões  ·  \*DIVIDIDA: \[x] S40a (backend: CommissionRule/Commission + cálculo + relatório) · \[ ] S40b (tela web)\*
 
 \*\*Depende de:\*\* S30, S20
 
@@ -2001,6 +2001,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/estoque` → \*\*painel de Alertas\*\* (estoque baixo Gaze/Luva + validade próxima Anestesico LOTE-VENC, dados da S39a); criar insumo "Gaze esteril" (mín 3) → \*\*Entrada 10 → "10 pct"\*\* → \*\*Saída 8 → "2 pct"\*\* (baixo, borda âmbar) (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S39 COMPLETA.\*\* Próxima no backlog: \*\*S40 — Comissões\*\* (`Commission`; `commission/service.ts`; calcular comissão por procedimento executado/pago, regra por procedimento/percentual; relatório por profissional e período). Depende de S30+S20. Herdadas: baixa por procedimento na UI do estoque (seletor), múltiplos almoxarifados, navegação comum web (agenda/.../financeiro/caixa/estoque), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S40a — Comissões: backend\*\*  ·  \*S40 DIVIDIDA em S40a (esta) + S40b (tela web)\*
+
+  \- \*O que foi feito:\* cálculo de comissão por profissional. Schema: \*\*`CommissionRule`\*\* (professionalId×`procedureId?` → `percent`; procedureId null = regra \*\*GERAL\*\* do profissional) + \*\*`Commission`\*\* (comissão calculada: `baseCents`, `percent`, `amountCents` = base×percent/100, `status` PENDING/PAID/CANCELLED, `date`, reference?, paidAt?) + enum + back-relations (Tenant/User named) + migration aditiva. `CommissionService` tenant-scoped (anti-IDOR): createRule/listRules (valida profissional/procedimento no tenant), \*\*`record`\*\* (\*\*resolve o percentual\*\*: regra específica do procedimento → fallback GERAL; sem regra → 400; cria Commission com `amount = round(base*percent/100)`), \*\*`report`\*\* (lançamentos + \*\*total por profissional\*\* no período), `markPaid` (repasse → PAID; não-pendente → 409). `CommissionController` em `/commissions` (`billing:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`CommissionRule` +`Commission` +enum +back-relations) + migration `s40_commission` (aditiva), `apps/api/src/commission/{commission.service,commission.controller,commission.module}.ts` + `dto/commission.dto.ts` (novos), `apps/api/src/app.module.ts` (+CommissionModule), teste `apps/api/test/commission.service.spec.ts` (5 casos). Sem dep nova.
+
+  \- \*Decisões:\* `record` recebe o \*\*valor-base explícito\*\* (`baseCents`) — quem dispara (procedimento executado da S30 ou pago da S20) passa o valor; o auto-hook a partir de ExecutionLog/Payment fica como melhoria (a base viria do BudgetItem/PriceTable). \*\*Regra específica > geral\*\* (prioridade). Percentual inteiro 0..100. Permissões reusam \*\*`billing:*`\*\*. Relatório agrega total por profissional no período.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (214 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): regra GERAL 10% + ESPECÍFICA 30%; \*\*comissão do procedimento\*\* (base R$200) → usa \*\*específica 30% = R$60\*\* PENDING; \*\*comissão sem procedimento\*\* (base R$100) → usa \*\*geral 10% = R$10\*\*; \*\*relatório\*\* por profissional → 2 lançamentos, \*\*total R$70\*\*; \*\*repasse\*\* → PAID+paidAt; re-repassar → \*\*409\*\*; relatório período futuro → vazio; profissional inválido → \*\*400\*\*; anti-IDOR comissão alheia → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S40b\*\* — tela web `/comissoes` (configurar regras por profissional/procedimento; relatório por profissional e período com total; registrar comissão; marcar repasse). api-client +métodos. Herdadas: auto-gerar comissão a partir de ExecutionLog(S30)/Payment(S20), navegação comum web, as de sempre.
 
 
 

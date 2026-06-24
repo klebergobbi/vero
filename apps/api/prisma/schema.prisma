@@ -79,6 +79,7 @@ model Tenant {
   stockMovements   StockMovement[]
   commissionRules  CommissionRule[]
   commissions      Commission[]
+  goals            Goal[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -147,6 +148,7 @@ model User {
   assignedCrcTasks CRCTask[] @relation("CRCAssignee")
   commissionRules CommissionRule[] @relation("CommissionRuleProfessional")
   commissions    Commission[]     @relation("CommissionProfessional")
+  goals          Goal[]           @relation("GoalProfessional")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1538,4 +1540,28 @@ enum CommissionStatus {
   PENDING
   PAID
   CANCELLED
+}
+
+/// Meta (§6/S41): alvo por clínica (professionalId null) ou profissional, num
+/// período. `metric` define o que é medido; `targetValue` é o alvo (centavos p/
+/// REVENUE, contagem p/ APPOINTMENTS). O "realizado" é calculado dos dados.
+model Goal {
+  id             String     @id @default(cuid())
+  tenantId       String
+  professionalId String?
+  metric         GoalMetric
+  targetValue    Int
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime   @default(now())
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional User?  @relation("GoalProfessional", fields: [professionalId], references: [id])
+
+  @@index([tenantId])
+}
+
+enum GoalMetric {
+  REVENUE
+  APPOINTMENTS
 }

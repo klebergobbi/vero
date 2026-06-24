@@ -47,6 +47,7 @@ import { CommissionModule } from "./commission/commission.module";
 import { CrcModule } from "./crc/crc.module";
 import { DocumentModule } from "./document/document.module";
 import { FinanceModule } from "./finance/finance.module";
+import { GoalModule } from "./goal/goal.module";
 import { InventoryModule } from "./inventory/inventory.module";
 import { ProstheticModule } from "./prosthetic/prosthetic.module";
 import { ReturnModule } from "./return/return.module";
@@ -156,6 +157,7 @@ import { RedisModule } from "./redis/redis.module";
     FinanceModule,
     InventoryModule,
     CommissionModule,
+    GoalModule,
     MeModule,
     WhatsAppModule,
     PushModule,

@@ -942,7 +942,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S41 — Metas
+\#### \[ ] S41 — Metas  ·  \*DIVIDIDA: \[x] S41a (backend: Goal + realizado vs meta) · \[ ] S41b (tela web)\*
 
 \*\*Depende de:\*\* S42 (ou paralelo)
 
@@ -2025,6 +2025,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/comissoes` mostra as regras (10%/30%) e o relatório da S40a (total R$70); \*\*registrar comissão\*\* (Revisor Demo, base R$300, sem procedimento) → \*\*"Comissao via web · 10% de R$ 300,00 · R$ 30,00"\*\* (regra geral aplicada) → total subiu p/ R$100; \*\*Repassar\*\* → badge \*\*"Repassado"\*\* (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S40 COMPLETA.\*\* Próxima no backlog: \*\*S41 — Metas\*\* (`Goal`; `goal/service.ts`; definir meta por clínica/profissional/período + acompanhar meta vs realizado). Depende de S42 (ou paralelo). Herdadas: auto-gerar comissão a partir de ExecutionLog(S30)/Payment(S20), navegação comum web (agenda/.../financeiro/caixa/estoque/comissoes), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S41a — Metas: backend\*\*  ·  \*S41 DIVIDIDA em S41a (esta) + S41b (tela web)\*
+
+  \- \*O que foi feito:\* definir e acompanhar metas. Schema: \*\*`Goal`\*\* (`professionalId?` null=clínica, `metric` REVENUE/APPOINTMENTS, `targetValue` = centavos/contagem, `periodStart`/`periodEnd`) + enum + back-relations (Tenant/User named) + migration aditiva. `GoalService` tenant-scoped (anti-IDOR): `create` (valida profissional se dado + período início<fim → 400), \*\*`listWithProgress`\*\* (cada meta com o \*\*realizado calculado dos dados\*\* + `percent`), `remove`. \*\*Realizado\*\*: REVENUE = soma `Payment.amountCents` (S20) do período; APPOINTMENTS = contagem de `Appointment` não-cancelados do período (filtrado por profissional quando a meta é de um). `GoalController` em `/goals` (`billing:read|write`).
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`Goal` +enum +back-relations) + migration `s41_goal` (aditiva), `apps/api/src/goal/{goal.service,goal.controller,goal.module}.ts` + `dto/goal.dto.ts` (novos), `apps/api/src/app.module.ts` (+GoalModule), teste `apps/api/test/goal.service.spec.ts` (4 casos). Sem dep nova.
+
+  \- \*Decisões:\* o \*\*realizado é calculado dos dados existentes\*\* (não precisa do dashboard S42 — daí "S41 paralelo a S42"). REVENUE usa os pagamentos da S20 (sem link a profissional → meta de receita é clínica; meta de profissional faz mais sentido com APPOINTMENTS). `percent = round(realizado/meta*100)`. Permissões reusam `billing:*`. Select extraído em `GOAL_SELECT`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (218 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 Payment de R$80 na S20): meta \*\*RECEITA R$200\*\* → realizado \*\*R$80 (= soma dos pagamentos) = 40%\*\*; meta \*\*CONSULTAS 50\*\* → realizado \*\*5 (consultas não-canceladas) = 10%\*\*; período inválido (início≥fim) → \*\*400\*\*; profissional inválido → \*\*400\*\*; anti-IDOR deletar meta alheia → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S41b\*\* — tela web `/metas` (definir meta: escopo clínica/profissional + métrica + alvo + período; acompanhamento com \*\*barra de progresso meta vs realizado\*\* + %). api-client +métodos. Herdadas: meta de receita por profissional (precisa link Payment→profissional), mais métricas (conversão/ocupação) quando o dashboard S42 existir, navegação comum web, as de sempre.
 
 
 

@@ -954,7 +954,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S42 — Dashboard analítico  ·  \*DIVIDIDA: \[x] S42a (backend: dashboard.service agrega + cache Redis) · \[ ] S42b (tela web com gráficos)\*
+\#### \[x] S42 — Dashboard analítico  ·  \*DIVIDIDA: \[x] S42a (backend: dashboard.service agrega + cache Redis) · \[x] S42b (tela web com gráficos)\*
 
 \*\*Depende de:\*\* S6, S19
 
@@ -2061,6 +2061,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (222 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): KPIs \*\*receita R$80 (=soma Payment), faturamento R$450 (=soma Charge), 5 consultas, conversão 100% (4/4 aprovados)\*\* — \*\*batem com o banco\*\*; 1ª chamada \*\*cached:false\*\*, 2ª \*\*cached:true\*\* (<2s), série 6 meses; \*\*invalidate\*\* → 1 chave limpa → próxima chamada cached:false; token de paciente → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S42b\*\* — tela web `/dashboard` (cards de KPI: receita/faturamento/consultas/conversão + gráfico de barras da série mensal — receita e consultas). api-client +método. Herdadas: auto-invalidar o cache em eventos (pagamento/agendamento/orçamento), gráficos com Recharts (hoje barras CSS/SVG), navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S42b — Dashboard analítico: tela web com gráficos (FECHA a S42)\*\*
+
+  \- \*O que foi feito:\* tela de indicadores. \*\*api-client:\* +`getDashboard({from,to})` + tipo `DashboardData`.\* Página \*\*`/dashboard`\*\* (Server Component, \*\*sem client\*\*): \*\*cards de KPI\*\* coloridos (Receita / Faturamento / Consultas / Conversão com "N aprov./M recus.") + \*\*gráfico de barras\*\* (div/CSS, sem dep) da série mensal — receita (verde) e consultas (vero) por mês, com legenda. Período = \*\*ano corrente\*\* (agrega os KPIs do ano; série pega os últimos 6 meses do fim do ano).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (1 método + 1 tipo), `apps/web/app/dashboard/page.tsx` (novo). Sem backend novo (consome S42a), sem migration.
+
+  \- \*Decisões:\* tudo \*\*Server Component\*\* (KPIs read-only — sem interatividade). Gráfico com \*\*barras CSS\*\* (altura proporcional, sem Recharts — §8). \*\*Período = ano corrente\*\* (não "últimos 6 meses até agora") porque o pagamento demo da S20 está datado em ago/2026 (futuro vs hoje 24/06) — a janela do ano captura os dados; a agregação em si é correta (provada na S42a com range explícito).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/dashboard` → cards \*\*Receita R$ 80,00 · Faturamento R$ 450,00 · Consultas 5 · Conversão 100% (4 aprov./0 recus.)\*\* — \*\*batem com a S42a/banco\*\*; gráfico de barras com 07/26 (consultas) e 08/26 (receita R$80); carregou em ~1.9s (via cache) (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S42 COMPLETA.\*\* Próxima no backlog: \*\*S43 — Engine de relatórios\*\* (`reports/report.service.ts`; fila `report-builder` p/ pesados em background; export CSV/PDF; relatório de faturamento e de faltas/desmarcações com filtro de período). Depende de S42. Herdadas: auto-invalidar cache do dashboard em eventos, gráficos com Recharts, seletor de período no dashboard, navegação comum web (agenda/.../estoque/comissoes/metas/dashboard), `Professional.specialties`, as de sempre.
 
 
 

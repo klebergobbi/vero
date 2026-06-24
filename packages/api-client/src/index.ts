@@ -156,6 +156,22 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Dashboard analítico (§S42). */
+export interface DashboardData {
+  period: { from: string; to: string };
+  kpis: {
+    revenueCents: number;
+    billedCents: number;
+    appointmentsCount: number;
+    conversionPercent: number;
+    approvedBudgets: number;
+    rejectedBudgets: number;
+  };
+  series: { month: string; revenueCents: number; appointments: number }[];
+  generatedAt: string;
+  cached: boolean;
+}
+
 /** Meta com progresso (§S41). */
 export interface GoalProgress {
   id: string;
@@ -758,6 +774,21 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify({ userId }),
         accessToken,
       }),
+
+    // --- Dashboard analítico (§S42, gated billing:read) ---
+
+    getDashboard: (params?: {
+      from?: string;
+      to?: string;
+    }): Promise<DashboardData> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<DashboardData>(baseUrl, `/analytics/dashboard${suffix}`, {
+        accessToken,
+      });
+    },
 
     // --- Metas (§S41, gated billing:read|write) ---
 

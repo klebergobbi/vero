@@ -24,6 +24,8 @@ describe("AuthService", () => {
     const prisma = {
       tenant: { findFirst: jest.fn().mockResolvedValue(overrides?.tenant) },
       user: { findFirst: jest.fn().mockResolvedValue(overrides?.user) },
+      // §S45: login busca a unidade ativa padrão (1ª UserUnit do usuário).
+      userUnit: { findFirst: jest.fn().mockResolvedValue(null) },
     } as unknown as PrismaService;
 
     const redis = {

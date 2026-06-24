@@ -55,6 +55,7 @@ import { ProstheticModule } from "./prosthetic/prosthetic.module";
 import { ReportModule } from "./reports/report.module";
 import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
+import { AccessModule } from "./network/access.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
 import { TreatmentModule } from "./treatment/treatment.module";
 import { MeModule } from "./me/me.module";
@@ -164,6 +165,7 @@ import { RedisModule } from "./redis/redis.module";
     AnalyticsModule,
     ReportModule,
     CrmModule,
+    AccessModule,
     MeModule,
     WhatsAppModule,
     PushModule,

@@ -60,11 +60,47 @@ export class AuthService {
     const ok = await argon2.verify(user.passwordHash, dto.password);
     if (!ok) throw new UnauthorizedException(GENERIC_AUTH_ERROR);
 
+    // Unidade ativa padrão da sessão (§S45): a 1ª unidade autorizada do usuário.
+    const unitId = await this.defaultUnitId(user.id, user.tenantId);
+
     return this.issueTokens({
       sub: user.id,
       tenantId: user.tenantId,
       roleId: user.roleId,
+      ...(unitId ? { unitId } : {}),
     });
+  }
+
+  /**
+   * Re-emite o par de tokens de equipe com uma unidade ativa (§S45). Chamado pela
+   * AccessService DEPOIS de revalidar, no servidor, que o usuário tem acesso à unidade
+   * (anti-IDOR). A AuthService só assina — a autorização é responsabilidade da AccessService.
+   */
+  async issueForStaff(claims: {
+    sub: string;
+    tenantId: string;
+    roleId: string;
+    unitId?: string;
+  }): Promise<TokenPair> {
+    return this.issueTokens({
+      sub: claims.sub,
+      tenantId: claims.tenantId,
+      roleId: claims.roleId,
+      ...(claims.unitId ? { unitId: claims.unitId } : {}),
+    });
+  }
+
+  /** 1ª unidade autorizada do usuário (UserUnit), ou undefined se não houver. */
+  private async defaultUnitId(
+    userId: string,
+    tenantId: string,
+  ): Promise<string | undefined> {
+    const membership = await this.prisma.userUnit.findFirst({
+      where: { tenantId, userId, unit: { deletedAt: null } },
+      orderBy: { unit: { name: "asc" } },
+      select: { unitId: true },
+    });
+    return membership?.unitId;
   }
 
   /**
@@ -87,10 +123,14 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException(GENERIC_AUTH_ERROR);
 
+    // Preserva a unidade ativa da sessão através do refresh (§S45): o claim viaja
+    // no refresh token (que herda os claims). A troca de unidade já foi revalidada
+    // no servidor quando aconteceu; o refresh apenas mantém o contexto.
     return this.issueTokens({
       sub: user.id,
       tenantId: user.tenantId,
       roleId: user.roleId,
+      ...(payload.unitId ? { unitId: payload.unitId } : {}),
     });
   }
 

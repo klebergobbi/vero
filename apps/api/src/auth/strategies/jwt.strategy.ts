@@ -9,6 +9,8 @@ export interface AccessTokenPayload {
   sub: string; // userId
   tenantId: string;
   roleId: string;
+  /** Unidade ativa da sessão (§S45). Opcional: usuário sem unidade atribuída. */
+  unitId?: string;
   type: "access" | "refresh";
 }
 
@@ -25,6 +27,8 @@ export interface AuthenticatedUser {
   userId: string;
   tenantId: string;
   roleId: string;
+  /** Unidade ativa da sessão (§S45) — base p/ queries tenant+unit scoped. */
+  unitId?: string;
 }
 
 /** Principal de paciente em `req.user` (rotas /me/*; NÃO tem papel/permissions). */
@@ -60,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         userId: payload.sub,
         tenantId: payload.tenantId,
         roleId: payload.roleId,
+        ...(payload.unitId ? { unitId: payload.unitId } : {}),
       };
     }
     if (payload.type === "patient-access") {

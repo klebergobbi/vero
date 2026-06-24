@@ -17,6 +17,8 @@ export const prisma = new PrismaClient();
 const DEMO_TENANT_SLUG = "vero-demo";
 const DEMO_CLINIC_ID = "demo-clinic";
 const DEMO_UNIT_ID = "demo-unit";
+// 2ª unidade demo (§S45): permite demonstrar a navegação multi-unidade.
+const DEMO_UNIT_2_ID = "demo-unit-2";
 const DEMO_REVIEWER_EMAIL = "revisor.demo@vero.com.br";
 // Conta demo do App do Paciente (revisor de loja, §5). CPF de teste válido.
 const DEMO_PATIENT_ID = "demo-patient";
@@ -77,7 +79,18 @@ async function seedTenant(): Promise<string> {
     },
   });
 
-  console.log(`  ✓ tenant demo (${tenant.slug}) + clínica + unidade`);
+  await prisma.unit.upsert({
+    where: { id: DEMO_UNIT_2_ID },
+    update: { name: "Filial", tenantId: tenant.id, clinicId: clinic.id },
+    create: {
+      id: DEMO_UNIT_2_ID,
+      tenantId: tenant.id,
+      clinicId: clinic.id,
+      name: "Filial",
+    },
+  });
+
+  console.log(`  ✓ tenant demo (${tenant.slug}) + clínica + 2 unidades`);
   return tenant.id;
 }
 
@@ -140,11 +153,14 @@ async function seedReviewer(
     },
   });
 
-  await prisma.userUnit.upsert({
-    where: { userId_unitId: { userId: reviewer.id, unitId: DEMO_UNIT_ID } },
-    update: {},
-    create: { tenantId, userId: reviewer.id, unitId: DEMO_UNIT_ID },
-  });
+  // Revisor tem acesso às DUAS unidades (§S45 — navega entre Matriz e Filial).
+  for (const unitId of [DEMO_UNIT_ID, DEMO_UNIT_2_ID]) {
+    await prisma.userUnit.upsert({
+      where: { userId_unitId: { userId: reviewer.id, unitId } },
+      update: {},
+      create: { tenantId, userId: reviewer.id, unitId },
+    });
+  }
 
   console.log(`  ✓ conta demo de revisor (${DEMO_REVIEWER_EMAIL})`);
 }

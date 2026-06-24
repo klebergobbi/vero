@@ -968,7 +968,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S43 — Engine de relatórios  ·  \*DIVIDIDA: \[x] S43a (backend: Report + fila report-builder + CSV/PDF) · \[ ] S43b (tela web)\*
+\#### \[x] S43 — Engine de relatórios  ·  \*DIVIDIDA: \[x] S43a (backend: Report + fila report-builder + CSV/PDF) · \[x] S43b (tela web)\*
 
 \*\*Depende de:\*\* S42
 
@@ -2085,6 +2085,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (227 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455 + Redis): \*\*FATURAMENTO CSV\*\* → PENDING → worker → \*\*READY (2 linhas)\*\* → download \*\*200 text/csv\*\* com "14/08/2026; Paciente Demo; R$ 80,00" + TOTAL; \*\*FALTAS PDF\*\* → READY → download \*\*200 application/pdf (%PDF-1.3)\*\*; catálogo lista; anti-IDOR relatório alheio → \*\*403\*\*; paciente em POST → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S43b\*\* — tela web `/relatorios` (escolher tipo Faturamento/Faltas + formato CSV/PDF + período → solicitar; catálogo com status + botão Baixar quando READY; refresh do status). api-client +métodos. Herdadas: upload do conteúdo ao DO Spaces, mais tipos de relatório, navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S43b — Engine de relatórios: tela web (FECHA a S43)\*\*
+
+  \- \*O que foi feito:\* UI do catálogo de relatórios. \*\*api-client:\* +`listReports()`/`requestReport(input)`/`getReport(id)` + tipo `ReportItem`.\* Página \*\*`/relatorios`\*\* (Server Component, catálogo) + `reports-view.tsx` (client): form \*\*"Novo relatório"\*\* (tipo Faturamento/Faltas + formato CSV/PDF + período) → \*\*"Gerar relatório"\*\* (solicita; gera em background); catálogo com status (Gerando…/Pronto/Falhou) + nº de linhas + botão \*\*"Baixar"\*\* quando READY (`getReport` → URL assinada absoluta → abre em nova aba) + botão \*\*"Atualizar"\*\* (refaz a lista, já que a geração é async).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (3 métodos + 1 tipo), `apps/web/app/relatorios/{page.tsx,actions.ts,reports-view.tsx}` (novos). Sem backend novo (consome S43a), sem migration.
+
+  \- \*Decisões:\* geração assíncrona → botão \*\*"Atualizar"\*\* p/ buscar o status (sem polling automático — simples). "Baixar" abre a aba \*\*sincronamente\*\* + navega após buscar a URL assinada (mesmo padrão do PDF de documentos S32b; o `attachment` vira download). URL absoluta (`apiBaseUrl`+path; `/reports/file/:token` é `@Public`). Página standalone `/relatorios`.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/relatorios` mostra o catálogo da S43a (Faturamento CSV 2 linhas, Faltas PDF 0 linhas, todos \*\*Pronto\*\*); gerar novo Faturamento CSV → "Atualizar" → \*\*"Pronto" + "Baixar"\*\*; "Baixar" abre `/reports/file/...` (attachment — o frame aborta ao virar download, esperado) (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S43 COMPLETA.\*\* Próxima no backlog: \*\*S44 — CRM: origem, indicação e demografia\*\* (`CRMLead`/`LeadSource`/`Referral`; `crm/service.ts`; rastrear lead da origem ao fechamento; relatório de ROI por canal; quem indicou quem). Depende de S5. Herdadas: upload do conteúdo de relatório ao DO Spaces, polling automático do status, mais tipos de relatório, navegação comum web (agenda/.../dashboard/relatorios), `Professional.specialties`, as de sempre.
 
 
 

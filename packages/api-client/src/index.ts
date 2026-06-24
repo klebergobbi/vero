@@ -156,6 +156,21 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Relatório exportável (§S43). `url` presente quando READY (via getReport). */
+export interface ReportItem {
+  id: string;
+  type: string;
+  format: string;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  rowCount: number | null;
+  error: string | null;
+  createdAt: string;
+  url?: string;
+  expiresAt?: string;
+}
+
 /** Dashboard analítico (§S42). */
 export interface DashboardData {
   period: { from: string; to: string };
@@ -774,6 +789,26 @@ export function createApiClient(opts: ApiClientOptions) {
         body: JSON.stringify({ userId }),
         accessToken,
       }),
+
+    // --- Engine de relatórios (§S43, gated billing:read|write) ---
+
+    listReports: (): Promise<ReportItem[]> =>
+      request<ReportItem[]>(baseUrl, "/reports", { accessToken }),
+
+    requestReport: (input: {
+      type: string;
+      format: string;
+      periodStart: string;
+      periodEnd: string;
+    }): Promise<ReportItem> =>
+      request<ReportItem>(baseUrl, "/reports", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    getReport: (id: string): Promise<ReportItem> =>
+      request<ReportItem>(baseUrl, `/reports/${id}`, { accessToken }),
 
     // --- Dashboard analítico (§S42, gated billing:read) ---
 

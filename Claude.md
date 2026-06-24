@@ -980,7 +980,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S44 — CRM: origem, indicação e demografia  ·  \*DIVIDIDA: \[x] S44a (backend: LeadChannel/CRMLead/Referral + funil + ROI/indicações/demografia) · \[ ] S44b (tela web)\*
+\#### \[x] S44 — CRM: origem, indicação e demografia  ·  \*DIVIDIDA: \[x] S44a (backend: LeadChannel/CRMLead/Referral + funil + ROI/indicações/demografia) · \[x] S44b (tela web)\*
 
 \*\*Depende de:\*\* S5
 
@@ -2109,6 +2109,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (232 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local 5455/6395, API real): criar canal \*\*Instagram (custo R\$300)\*\* → lead via Instagram \*\*com indicação do paciente demo\*\* (NEW, canal Instagram) → funil \*\*NEW→SCHEDULED→CLOSED (R\$800)\*\* → CLOSED sem valor → \*\*400\*\* → \*\*ROI por canal: Instagram leads 2, fechados 1, receita R\$800, custo R\$300, ROI R\$500\*\* → \*\*quem indicou quem: Paciente Demo → Joana Lead (CLOSED)\*\* → demografia (idade 30-44 + São Paulo) → anti-IDOR lead alheio → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S44b\*\* — tela web `/crm`: cadastro de canais (com custo), funil de leads (criar/mover status), relatório de ROI por canal, indicações (quem indicou quem) e demografia; api-client +métodos. \*\*FECHA a Fase 4.\*\* Herdadas: `convertedPatientId` no fechamento (hoje só status+valor), navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S44b — CRM: tela web (FECHA a S44 e a FASE 4)\*\*
+
+  \- \*O que foi feito:\* UI do CRM no web (`/crm`, protegida pelo middleware). \*\*api-client:\* +`listLeadSources`/`createLeadSource`/`listLeads`/`createLead`/`updateLeadStatus`/`crmReportBySource`/`crmReferrals`/`crmDemographics` + tipos `LeadChannelItem`/`CrmLeadItem`/`CrmSourceReport`/`CrmReferral`/`CrmDemographics`.\* `page.tsx` (Server Component BFF) busca os 6 conjuntos em paralelo (canais, leads, ROI, indicações, demografia, pacientes p/ o seletor de indicador — fail-soft). `crm-view.tsx` (client): seção \*\*Canais·ROI\*\* (form nome+investimento + tabela leads/fechados/receita/investido/\*\*ROI colorido\*\* verde≥0/vermelho<0), \*\*Funil de leads\*\* (form nome/telefone/canal/indicado-por/cidade/nascimento + lista com badge de status e botões de transição NEW→SCHEDULED/LOST, SCHEDULED→CLOSED/LOST; CLOSED pede o valor via `window.prompt`), \*\*Quem indicou quem\*\* e \*\*Demografia\*\* (faixa etária + cidade). `actions.ts` (Server Actions create canal/lead + updateStatus; reais→centavos; traduz erro). Mutações via `useTransition` + `router.refresh()` (re-fetch server-side).
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (8 métodos + 5 tipos), `apps/web/app/crm/{page.tsx,actions.ts,crm-view.tsx}` (novos). Sem backend novo (consome S44a), sem migration, sem dep nova.
+
+  \- \*Decisões:\* o front só escolhe/exibe — \*\*ROI/receita vêm calculados do backend\*\* (S44a). Valor de fechamento via `window.prompt` no clique \"Fechar\" (simples, sem modal). Seletor de indicador reusa `listPatients`. Botões de transição derivam do `NEXT_STATUS` (funil unidirecional: terminal CLOSED/LOST sem ações). ROI negativo em vermelho (canal sem retorno). Sem link de navegação entre páginas web ainda (menu comum segue como melhoria herdada).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (232 pass, 2 skip)/`build` (web compila `/crm`)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login GESTOR → `/crm` renderiza \*\*ROI: Instagram 2 leads/1 fechado/receita R\$800/investido R\$300/\*\*\*\*ROI R\$500\*\*; funil (Pedro=Novo com botões, Joana Lead=Fechado·R\$800); \*\*\"Paciente Demo indicou Joana Lead (Fechado)\"\*\*; demografia (30-44 + São Paulo). \*\*Escrita:\* criar canal \"Google Ads\" R\$150 → `router.refresh` mostra na tabela com \*\*ROI -R\$150\*\* (vermelho).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S44 COMPLETA — FECHA a FASE 4 (financeiro da clínica + gestão estratégica, S37–S44).\*\* Próxima no backlog: \*\*FASE 5 — S45 (Central de acessos multi-unidade)\*\* — contexto de unidade no JWT/sessão, `network/access.service.ts`, seletor de unidade no web; troca de unidade revalida autorização no servidor (anti-IDOR). Depende de S4. Herdadas: navegação comum web (menu agenda/.../crm), `convertedPatientId` no fechamento, `Professional.specialties`, modelos `Professional`/`Room` dedicados, extrair `@vero/mobile-shared`, as de sempre.
 
 
 

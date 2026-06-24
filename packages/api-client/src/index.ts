@@ -171,6 +171,47 @@ export interface ReportItem {
   expiresAt?: string;
 }
 
+/** CRM (§S44). */
+export interface LeadChannelItem {
+  id: string;
+  name: string;
+  costCents: number;
+  active: boolean;
+}
+export interface CrmLeadItem {
+  id: string;
+  name: string;
+  phone: string;
+  leadSourceId: string | null;
+  referredByPatientId: string | null;
+  status: string;
+  valueCents: number;
+  city: string | null;
+  birthDate: string | null;
+  createdAt: string;
+  leadSource: { name: string } | null;
+}
+export interface CrmSourceReport {
+  sourceId: string;
+  name: string;
+  costCents: number;
+  leads: number;
+  closed: number;
+  revenueCents: number;
+  roiCents: number;
+}
+export interface CrmReferral {
+  id: string;
+  referrerName: string;
+  leadName: string;
+  leadStatus: string;
+  createdAt: string;
+}
+export interface CrmDemographics {
+  byAge: { range: string; count: number }[];
+  byCity: { city: string; count: number }[];
+}
+
 /** Dashboard analítico (§S42). */
 export interface DashboardData {
   period: { from: string; to: string };
@@ -1180,6 +1221,65 @@ export function createApiClient(opts: ApiClientOptions) {
       request<Appointment>(baseUrl, "/appointments", {
         method: "POST",
         body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    // --- CRM (§S44) ---
+
+    listLeadSources: (): Promise<LeadChannelItem[]> =>
+      request<LeadChannelItem[]>(baseUrl, "/crm/sources", { accessToken }),
+
+    createLeadSource: (input: {
+      name: string;
+      costCents: number;
+    }): Promise<LeadChannelItem> =>
+      request<LeadChannelItem>(baseUrl, "/crm/sources", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    listLeads: (status?: string): Promise<CrmLeadItem[]> =>
+      request<CrmLeadItem[]>(
+        baseUrl,
+        `/crm/leads${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+        { accessToken },
+      ),
+
+    createLead: (input: {
+      name: string;
+      phone: string;
+      leadSourceId?: string;
+      referredByPatientId?: string;
+      birthDate?: string;
+      city?: string;
+    }): Promise<CrmLeadItem> =>
+      request<CrmLeadItem>(baseUrl, "/crm/leads", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    updateLeadStatus: (
+      id: string,
+      input: { status: string; valueCents?: number },
+    ): Promise<CrmLeadItem> =>
+      request<CrmLeadItem>(
+        baseUrl,
+        `/crm/leads/${encodeURIComponent(id)}/status`,
+        { method: "PATCH", body: JSON.stringify(input), accessToken },
+      ),
+
+    crmReportBySource: (): Promise<CrmSourceReport[]> =>
+      request<CrmSourceReport[]>(baseUrl, "/crm/report/sources", {
+        accessToken,
+      }),
+
+    crmReferrals: (): Promise<CrmReferral[]> =>
+      request<CrmReferral[]>(baseUrl, "/crm/report/referrals", { accessToken }),
+
+    crmDemographics: (): Promise<CrmDemographics> =>
+      request<CrmDemographics>(baseUrl, "/crm/report/demographics", {
         accessToken,
       }),
 

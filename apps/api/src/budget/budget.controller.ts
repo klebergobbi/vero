@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
 } from "@nestjs/common";
+import { ActiveUnitId } from "../common/decorators/active-unit.decorator";
 import { Permissions } from "../common/decorators/permissions.decorator";
 import { TenantId } from "../common/decorators/tenant-id.decorator";
 import { BudgetService } from "./budget.service";
@@ -25,8 +26,12 @@ export class BudgetController {
 
   @Post()
   @Permissions("budget:write")
-  create(@TenantId() tenantId: string, @Body() dto: CreateBudgetDto) {
-    return this.budgets.create(tenantId, dto);
+  create(
+    @TenantId() tenantId: string,
+    @Body() dto: CreateBudgetDto,
+    @ActiveUnitId() unitId: string | undefined,
+  ) {
+    return this.budgets.create(tenantId, dto, unitId);
   }
 
   @Get()

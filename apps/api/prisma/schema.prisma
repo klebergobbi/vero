@@ -118,6 +118,7 @@ model Unit {
   userUnits      UserUnit[]
   appointments   Appointment[]
   availabilities Availability[]
+  budgets        Budget[]
 
   @@index([tenantId])
   @@index([clinicId])
@@ -560,6 +561,8 @@ model Budget {
   patientId  String
   /// convênio do orçamento (opcional; base p/ preço dos itens). null = particular.
   planId     String?
+  /// unidade que originou o orçamento (§S45/S46) — atribui faturamento/conversão à unidade. null = legado/sem unidade.
+  unitId     String?
   status     BudgetStatus @default(OPEN)
   totalCents Int          @default(0)
   notes      String?
@@ -571,12 +574,14 @@ model Budget {
   tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   patient  Patient      @relation(fields: [patientId], references: [id])
   plan     Plan?        @relation(fields: [planId], references: [id])
+  unit     Unit?        @relation(fields: [unitId], references: [id])
   items    BudgetItem[]
   contract Contract?
   charge   Charge?
   treatmentPlan TreatmentPlan?
 
   @@index([tenantId])
+  @@index([tenantId, unitId])
   @@index([patientId])
 }
 

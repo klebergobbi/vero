@@ -22,7 +22,7 @@ import type {
 export class BudgetService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(tenantId: string, dto: CreateBudgetDto) {
+  async create(tenantId: string, dto: CreateBudgetDto, unitId?: string) {
     const scope = new TenantScope(tenantId);
     await this.assertPatient(scope, dto.patientId);
     if (dto.planId) await this.assertPlan(scope, dto.planId);
@@ -31,6 +31,8 @@ export class BudgetService {
         tenantId,
         patientId: dto.patientId,
         planId: dto.planId ?? null,
+        // Atribui o orçamento à unidade ATIVA da sessão (§S46) p/ o ranking por unidade.
+        unitId: unitId ?? null,
         notes: dto.notes ?? null,
       },
     });

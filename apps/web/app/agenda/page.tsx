@@ -6,8 +6,10 @@ import type {
   WaitListEntry,
 } from "@vero/api-client";
 import { serverApi } from "../../lib/api";
+import { getActiveUnitId } from "../../lib/session";
 import { logoutAction } from "../login/actions";
 import { AppointmentForm } from "./appointment-form";
+import { UnitSwitcher } from "./unit-switcher";
 
 // Protegida pelo middleware (refresh transparente). Sempre dinâmica (dados por sessão).
 export const dynamic = "force-dynamic";
@@ -43,19 +45,22 @@ export default async function AgendaPage() {
   let units: UnitSummary[] = [];
   let professionals: ProfessionalSummary[] = [];
   let waitList: WaitListEntry[] = [];
+  let myUnits: UnitSummary[] = [];
   let loadError = false;
   try {
-    [appointments, patients, units, professionals, waitList] =
+    [appointments, patients, units, professionals, waitList, myUnits] =
       await Promise.all([
         api.listAppointments(),
         api.listPatients(),
         api.listUnits(),
         api.listProfessionals(),
         api.listWaitList(),
+        api.listMyUnits(),
       ]);
   } catch {
     loadError = true;
   }
+  const activeUnitId = await getActiveUnitId();
 
   const patientName = new Map(patients.map((p) => [p.id, p.name]));
 
@@ -74,14 +79,17 @@ export default async function AgendaPage() {
             Próximos agendamentos da sua clínica.
           </p>
         </div>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            Sair
-          </button>
-        </form>
+        <div className="flex items-center gap-4">
+          <UnitSwitcher units={myUnits} activeUnitId={activeUnitId} />
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              Sair
+            </button>
+          </form>
+        </div>
       </header>
 
       {loadError ? (

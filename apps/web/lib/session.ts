@@ -49,3 +49,21 @@ export async function getAccessToken(): Promise<string | undefined> {
 export async function getRefreshToken(): Promise<string | undefined> {
   return (await cookies()).get(REFRESH_COOKIE)?.value;
 }
+
+/**
+ * Unidade ativa da sessão (§S45): lê o claim `unitId` do access token. Apenas
+ * decodifica o payload (base64) do NOSSO próprio cookie httpOnly — não substitui
+ * a verificação de assinatura, que o backend faz a cada request.
+ */
+export async function getActiveUnitId(): Promise<string | undefined> {
+  const token = await getAccessToken();
+  const payload = token?.split(".")[1];
+  if (!payload) return undefined;
+  try {
+    const json = Buffer.from(payload, "base64url").toString("utf8");
+    const claims = JSON.parse(json) as { unitId?: string };
+    return claims.unitId;
+  } catch {
+    return undefined;
+  }
+}

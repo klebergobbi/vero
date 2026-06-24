@@ -35,6 +35,11 @@ export interface UnitSummary {
   name: string;
 }
 
+/** Resultado da troca de unidade ativa (§S45): novo par de tokens + unidade ativa. */
+export interface SwitchUnitResult extends TokenPair {
+  unitId: string;
+}
+
 /** Resumo de profissional (User) para o seletor da agenda (id + name). */
 export interface ProfessionalSummary {
   id: string;
@@ -1221,6 +1226,18 @@ export function createApiClient(opts: ApiClientOptions) {
       request<Appointment>(baseUrl, "/appointments", {
         method: "POST",
         body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    // --- Central de acessos multi-unidade (§S45) ---
+
+    listMyUnits: (): Promise<UnitSummary[]> =>
+      request<UnitSummary[]>(baseUrl, "/network/units", { accessToken }),
+
+    switchUnit: (unitId: string): Promise<SwitchUnitResult> =>
+      request<SwitchUnitResult>(baseUrl, "/network/switch-unit", {
+        method: "POST",
+        body: JSON.stringify({ unitId }),
         accessToken,
       }),
 

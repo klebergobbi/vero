@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { ApiError } from "@vero/api-client";
 import { serverApi } from "../../lib/api";
+import { setAuthCookies } from "../../lib/session";
 
 export interface CreateAppointmentState {
   error?: string;
@@ -72,4 +73,26 @@ export async function createAppointmentAction(
 
   revalidatePath("/agenda");
   return { ok: true };
+}
+
+/**
+ * Troca a unidade ativa da sessão (§S45). O backend REVALIDA no servidor que o
+ * usuário tem acesso à unidade (anti-IDOR → 403) e re-emite o par de tokens; aqui
+ * só regravamos os cookies httpOnly com a nova sessão.
+ */
+export async function switchUnitAction(
+  unitId: string,
+): Promise<{ error?: string }> {
+  try {
+    const api = await serverApi();
+    const tokens = await api.switchUnit(unitId);
+    await setAuthCookies(tokens);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) {
+      return { error: "Você não tem acesso a essa unidade." };
+    }
+    return { error: "Não foi possível trocar de unidade." };
+  }
+  revalidatePath("/", "layout");
+  return {};
 }

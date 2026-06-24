@@ -156,6 +156,27 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Movimento de caixa (§S38). */
+export interface CashFlowEntry {
+  id: string;
+  direction: string;
+  amountCents: number;
+  date: string;
+  category: string;
+  description: string;
+  source: string;
+  paymentId: string | null;
+  accountId: string | null;
+  createdAt: string;
+  reconciled: boolean;
+  reconcileMethod: string | null;
+}
+export interface CashSummary {
+  inCents: number;
+  outCents: number;
+  balanceCents: number;
+}
+
 /** Conta a pagar/receber da clínica (§S37). */
 export interface Account {
   id: string;
@@ -665,6 +686,63 @@ export function createApiClient(opts: ApiClientOptions) {
       request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
         method: "PATCH",
         body: JSON.stringify({ userId }),
+        accessToken,
+      }),
+
+    // --- Fluxo de caixa + conciliação (§S38, gated billing:read|write) ---
+
+    listCashFlow: (params?: {
+      from?: string;
+      to?: string;
+    }): Promise<CashFlowEntry[]> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<CashFlowEntry[]>(baseUrl, `/cashflow${suffix}`, {
+        accessToken,
+      });
+    },
+
+    cashFlowSummary: (params?: {
+      from?: string;
+      to?: string;
+    }): Promise<CashSummary> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<CashSummary>(baseUrl, `/cashflow/summary${suffix}`, {
+        accessToken,
+      });
+    },
+
+    recordCashFlow: (input: {
+      direction: string;
+      amountCents: number;
+      date: string;
+      category: string;
+      description: string;
+    }): Promise<CashFlowEntry> =>
+      request<CashFlowEntry>(baseUrl, "/cashflow", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    syncCashFlowPayments: (): Promise<{ imported: number }> =>
+      request<{ imported: number }>(baseUrl, "/cashflow/sync-payments", {
+        method: "POST",
+        accessToken,
+      }),
+
+    reconcileCashFlow: (
+      id: string,
+      reference?: string,
+    ): Promise<CashFlowEntry> =>
+      request<CashFlowEntry>(baseUrl, `/cashflow/${id}/reconcile`, {
+        method: "PATCH",
+        body: JSON.stringify(reference ? { reference } : {}),
         accessToken,
       }),
 

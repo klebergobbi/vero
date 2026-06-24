@@ -906,7 +906,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S38 — Fluxo de caixa + conciliação  ·  \*DIVIDIDA: \[x] S38a (backend: CashFlow/BankReconciliation + sync auto + manual) · \[ ] S38b (tela web)\*
+\#### \[x] S38 — Fluxo de caixa + conciliação  ·  \*DIVIDIDA: \[x] S38a (backend: CashFlow/BankReconciliation + sync auto + manual) · \[x] S38b (tela web)\*
 
 \*\*Depende de:\*\* S37, S20
 
@@ -1965,6 +1965,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (205 pass, +7; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455; havia 1 Payment da S20): \*\*sync AUTO\*\* → imported 1 (CashFlow IN R$80 conciliado AUTO); \*\*sync de novo → 0\*\* (idempotente); \*\*lançamento MANUAL\*\* OUT R$150 (não conciliado); lista → IN 80 PAYMENT/AUTO + OUT 150 MANUAL; \*\*summary\*\* → entradas 80 / saídas 150 / saldo -70; \*\*conciliação MANUAL\*\* da saída → reconciled MANUAL; re-reconciliar → \*\*409\*\*; \*\*período\*\* (junho: saídas 150/saldo -150; julho vazio: 0); anti-IDOR mov alheio → \*\*403\*\*; amount 0 → \*\*400\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S38b\*\* — tela web `/caixa` (ou aba do financeiro): visão diária/mensal (filtro de período) com entradas/saídas/saldo; lista de movimentos com badge de conciliado (AUTO/MANUAL); botões "Importar pagamentos" (sync), "Conciliar" (manual) e lançar movimento manual. api-client +métodos. Herdadas: hook em tempo real do S20→caixa, importar contas PAID (S37) p/ o caixa, navegação comum web, as de sempre.
+
+\- \*\*2026-06-23 · S38b — Fluxo de caixa: tela web (FECHA a S38)\*\*
+
+  \- \*O que foi feito:\* UI do fluxo de caixa. \*\*api-client:\* +`listCashFlow({from,to})`/`cashFlowSummary({from,to})`/`recordCashFlow(input)`/`syncCashFlowPayments()`/`reconcileCashFlow(id,ref?)` + tipos `CashFlowEntry`/`CashSummary`.\* Página \*\*`/caixa`\*\* (Server Component, carrega o \*\*mês corrente\*\*) + `period.ts` (helper `monthRange` — fora do arquivo `"use server"`) + `cashflow-list.tsx` (client): \*\*seletor de mês\*\* (`<input type=month>` → recarrega o período), \*\*cards Entradas/Saídas/Saldo\*\*, botão \*\*"Importar pagamentos"\*\* (sync AUTO da S20), form de \*\*lançar movimento manual\*\* (entrada/saída), lista de movimentos com \*\*badge "conciliado · AUTO/MANUAL"\*\* e botão \*\*"Conciliar"\*\* nos não-conciliados. Cada ação devolve entries+summary do mês.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 2 tipos), `apps/web/app/caixa/{page.tsx,actions.ts,cashflow-list.tsx,period.ts}` (novos). Sem backend novo (consome S38a), sem migration.
+
+  \- \*Decisões:\* período por \*\*mês\*\* (`type=month` → `monthRange` em UTC) — visão mensal; diária seria um filtro de dia (futuro). `monthRange` num \*\*módulo `period.ts` separado\*\* porque um arquivo `"use server"` só pode exportar funções async (não o helper síncrono). Valor R$→centavos. Página standalone `/caixa` (navegação comum web pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/caixa` → cards Entradas/Saídas/Saldo; trocar p/ \*\*junho/2026\*\* mostra os movimentos; \*\*"Importar pagamentos"\*\* → mensagem de importados; \*\*lançar manual\*\* "Produtos de limpeza R$ 45,90" (saída) → aparece; \*\*"Conciliar"\*\* → badge \*\*"conciliado · MANUAL"\*\* (screenshot: Saídas R$ 195,90 / Saldo -R$ 195,90, 2 movimentos conciliados MANUAL).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S38 COMPLETA.\*\* Próxima no backlog: \*\*S39 — Estoque\*\* (`Inventory`/`Item`/`StockMovement`/`Batch`; `inventory/{module,service}.ts`; entrada/saída, baixa por procedimento, alerta de validade e de estoque mínimo). Depende de S16. Herdadas: filtro diário no caixa, hook em tempo real S20→caixa, importar contas PAID p/ o caixa, navegação comum web (agenda/.../financeiro/caixa), `Professional.specialties`, as de sempre.
 
 
 

@@ -46,6 +46,7 @@ import { AnalyticsModule } from "./analytics/analytics.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { CommissionModule } from "./commission/commission.module";
 import { CrcModule } from "./crc/crc.module";
+import { CrmModule } from "./crm/crm.module";
 import { DocumentModule } from "./document/document.module";
 import { FinanceModule } from "./finance/finance.module";
 import { GoalModule } from "./goal/goal.module";
@@ -162,6 +163,7 @@ import { RedisModule } from "./redis/redis.module";
     GoalModule,
     AnalyticsModule,
     ReportModule,
+    CrmModule,
     MeModule,
     WhatsAppModule,
     PushModule,

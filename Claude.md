@@ -980,7 +980,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S44 — CRM: origem, indicação e demografia
+\#### \[ ] S44 — CRM: origem, indicação e demografia  ·  \*DIVIDIDA: \[x] S44a (backend: LeadChannel/CRMLead/Referral + funil + ROI/indicações/demografia) · \[ ] S44b (tela web)\*
 
 \*\*Depende de:\*\* S5
 
@@ -2097,6 +2097,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/relatorios` mostra o catálogo da S43a (Faturamento CSV 2 linhas, Faltas PDF 0 linhas, todos \*\*Pronto\*\*); gerar novo Faturamento CSV → "Atualizar" → \*\*"Pronto" + "Baixar"\*\*; "Baixar" abre `/reports/file/...` (attachment — o frame aborta ao virar download, esperado) (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S43 COMPLETA.\*\* Próxima no backlog: \*\*S44 — CRM: origem, indicação e demografia\*\* (`CRMLead`/`LeadSource`/`Referral`; `crm/service.ts`; rastrear lead da origem ao fechamento; relatório de ROI por canal; quem indicou quem). Depende de S5. Herdadas: upload do conteúdo de relatório ao DO Spaces, polling automático do status, mais tipos de relatório, navegação comum web (agenda/.../dashboard/relatorios), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S44a — CRM: backend (canais + funil + ROI/indicações/demografia)\*\*  ·  \*S44 DIVIDIDA em S44a (esta) + S44b (tela web)\*
+
+  \- \*O que foi feito:\* liga marketing a faturamento. Schema: \*\*`LeadChannel`\*\* (canal de origem; `costCents` = investimento p/ ROI; \*\*renomeado de `LeadSource`\*\* p/ não colidir com o enum `LeadSource` já existente da S5), \*\*`CRMLead`\*\* (name/phone, `leadSourceId?`→canal, `referredByPatientId?`→indicação, `convertedPatientId?`, `status` enum `CRMLeadStatus` NEW/SCHEDULED/CLOSED/LOST = funil, `valueCents` = valor fechado, `birthDate?`/`city?` p/ demografia), \*\*`Referral`\*\* (`leadId @unique`, `referrerPatientId` = quem indicou) + migration aditiva. `CrmService` tenant-scoped (anti-IDOR `ensureOwned`→403): `createSource`/`listSources` (canais), `createLead` (valida canal+indicador do mesmo tenant; \*\*indicação cria um `Referral` aninhado\*\*), `listLeads`, `updateStatus` (move no funil; \*\*CLOSED exige `valueCents>0`\*\*→400), e 3 relatórios — `reportBySource` (\*\*ROI por canal: receita fechada − custo\*\*, via 2 `groupBy` leadSourceId, all + CLOSED com `_sum.valueCents`), `referrals` (\*\*quem indicou quem\*\*: referrer.name → lead.name + status), `demographics` (faixa etária via `birthDate` + cidade). `CrmController` (`/crm` — sources/leads/status + report/{sources,referrals,demographics}) gated `patient:read|write` (CRM é jornada do paciente). Migration `s44_crm`.
+
+  \- \*Arquivos tocados:\* `apps/api/prisma/schema.prisma` (+`LeadChannel` +`CRMLead` +`Referral` +enum `CRMLeadStatus` +back-relations Tenant/Patient), `apps/api/prisma/migrations/*_s44_crm/` (aditiva), `apps/api/src/crm/{crm.service,crm.controller,crm.module}.ts` + `crm/dto/crm.dto.ts` (novos), `apps/api/src/app.module.ts` (+CrmModule), teste `apps/api/test/crm.service.spec.ts` (5 casos). Sem dep nova. \*Permissions `patient:*` reusadas — sem re-seed.\*
+
+  \- \*Decisões:\* \*\*`LeadChannel` (não `LeadSource`)\*\* — o nome `LeadSource` já é um enum Prisma da S5 (origem do Patient); um modelo homônimo dá P1012 (\"a enum with that name already exists\"). Indicação modelada como `Referral` 1:1 com o lead (`leadId @unique`, Cascade) — registra o vínculo \"paciente X indicou lead Y\". ROI por \*\*`groupBy`\*\* (não N queries) — receita = `_sum.valueCents` dos CLOSED. CLOSED exige valor (sem fechamento sem receita — alimenta o ROI). `patient:*` em vez de criar `crm:*` (evita re-seed/flush de cache; CRM é parte da jornada do paciente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (232 pass, 2 skip; +5)/`build`/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*. \*\*AO VIVO\*\* (stack local 5455/6395, API real): criar canal \*\*Instagram (custo R\$300)\*\* → lead via Instagram \*\*com indicação do paciente demo\*\* (NEW, canal Instagram) → funil \*\*NEW→SCHEDULED→CLOSED (R\$800)\*\* → CLOSED sem valor → \*\*400\*\* → \*\*ROI por canal: Instagram leads 2, fechados 1, receita R\$800, custo R\$300, ROI R\$500\*\* → \*\*quem indicou quem: Paciente Demo → Joana Lead (CLOSED)\*\* → demografia (idade 30-44 + São Paulo) → anti-IDOR lead alheio → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S44b\*\* — tela web `/crm`: cadastro de canais (com custo), funil de leads (criar/mover status), relatório de ROI por canal, indicações (quem indicou quem) e demografia; api-client +métodos. \*\*FECHA a Fase 4.\*\* Herdadas: `convertedPatientId` no fechamento (hoje só status+valor), navegação comum web, as de sempre.
 
 
 

@@ -81,6 +81,9 @@ model Tenant {
   commissions      Commission[]
   goals            Goal[]
   reports          Report[]
+  leadChannels     LeadChannel[]
+  crmLeads         CRMLead[]
+  referrals        Referral[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -296,6 +299,7 @@ model Patient {
   returnAlerts ReturnAlert[]
   crcTasks     CRCTask[]
   prostheticOrders ProstheticOrder[]
+  referralsGiven Referral[] @relation("ReferralReferrer")
 
   @@unique([tenantId, cpf])
   @@index([tenantId])
@@ -1602,4 +1606,70 @@ enum ReportStatus {
   PENDING
   READY
   FAILED
+}
+
+/// Canal de captação / origem de lead (§6/S44; nomeado LeadChannel p/ não colidir
+/// com o enum LeadSource da S5). `costCents` = investimento de marketing (base do
+/// ROI = receita fechada − custo).
+model LeadChannel {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  costCents Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leads  CRMLead[]
+
+  @@index([tenantId])
+}
+
+/// Lead do CRM (§6/S44): rastreia da origem ao fechamento. `status` move no funil;
+/// `valueCents` = valor fechado (NEW→SCHEDULED→CLOSED/LOST). `birthDate`/`city` p/ a
+/// demografia. Indicação via `referredByPatientId` (registra um Referral).
+model CRMLead {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  name                String
+  phone               String
+  leadSourceId        String?
+  referredByPatientId String?
+  convertedPatientId  String?
+  status              CRMLeadStatus @default(NEW)
+  valueCents          Int           @default(0)
+  birthDate           DateTime?
+  city                String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leadSource LeadChannel? @relation(fields: [leadSourceId], references: [id])
+  referral   Referral?
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum CRMLeadStatus {
+  NEW
+  SCHEDULED
+  CLOSED
+  LOST
+}
+
+/// Indicação (§6/S44): quem indicou quem. Liga o paciente que indicou ao lead
+/// gerado (`leadId @unique` = 1 indicação por lead).
+model Referral {
+  id                String   @id @default(cuid())
+  tenantId          String
+  referrerPatientId String
+  leadId            String   @unique
+  createdAt         DateTime @default(now())
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  referrer Patient @relation("ReferralReferrer", fields: [referrerPatientId], references: [id])
+  lead     CRMLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

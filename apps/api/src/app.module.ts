@@ -42,6 +42,7 @@ import { CatalogModule } from "./catalog/catalog.module";
 import { ContractModule } from "./contract/contract.module";
 import { CreditModule } from "./credit/credit.module";
 import { AlignerModule } from "./aligner/aligner.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 import { AnamnesisModule } from "./anamnesis/anamnesis.module";
 import { CommissionModule } from "./commission/commission.module";
 import { CrcModule } from "./crc/crc.module";
@@ -158,6 +159,7 @@ import { RedisModule } from "./redis/redis.module";
     InventoryModule,
     CommissionModule,
     GoalModule,
+    AnalyticsModule,
     MeModule,
     WhatsAppModule,
     PushModule,

@@ -954,7 +954,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S42 — Dashboard analítico
+\#### \[ ] S42 — Dashboard analítico  ·  \*DIVIDIDA: \[x] S42a (backend: dashboard.service agrega + cache Redis) · \[ ] S42b (tela web com gráficos)\*
 
 \*\*Depende de:\*\* S6, S19
 
@@ -2049,6 +2049,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/metas` mostra as metas da S41a com \*\*barras de progresso\*\* — \*\*Faturamento R$ 80,00 de R$ 200,00 (40%)\*\* e \*\*Consultas 5 de 50 (10%)\*\*; criar nova meta de Consultas alvo 5 → \*\*"5 de 5 (100%)"\*\* (barra verde) (screenshot).\*
 
   \- \*Pendências p/ próxima:\* \*\*S41 COMPLETA.\*\* Próxima no backlog: \*\*S42 — Dashboard analítico\*\* (`analytics/dashboard.service.ts` agrega + cache Redis; tela web com gráficos: ocupação, receita, faturamento, conversão; carrega <2s via cache, invalidado por eventos). Depende de S6+S19. Herdadas: meta de receita por profissional, mais métricas de meta, navegação comum web (agenda/.../financeiro/caixa/estoque/comissoes/metas), `Professional.specialties`, as de sempre.
+
+\- \*\*2026-06-24 · S42a — Dashboard analítico: backend (agrega + cache Redis)\*\*  ·  \*S42 DIVIDIDA em S42a (esta) + S42b (tela web com gráficos)\*
+
+  \- \*O que foi feito:\* indicadores-chave agregados num só lugar, com cache. `DashboardService` (analytics/, \*\*sem schema novo\*\*) — `getDashboard(tenantId, {from?,to?})`: \*\*KPIs\*\* (receita=soma `Payment.amountCents`; faturamento=soma `Charge.totalCents` não-cancelado; consultas=contagem `Appointment` não-cancelado; \*\*conversão\*\*=aprovados/(aprovados+recusados) dos `Budget` decididos no período) + \*\*série mensal\*\* (últimos 6 meses: receita+consultas por mês p/ os gráficos). \*\*CACHE Redis\*\* por `dashboard:{tenant}:{from}:{to}` TTL 300s (carrega <2s); `invalidate(tenantId)` limpa as chaves (gancho de evento). `DashboardController`: `GET /analytics/dashboard?from=&to=` (`billing:read`), `POST /analytics/dashboard/invalidate` (`billing:write`). Período default = mês corrente.
+
+  \- \*Arquivos tocados:\* `apps/api/src/analytics/{dashboard.service,dashboard.controller,analytics.module}.ts` (novos), `apps/api/src/app.module.ts` (+AnalyticsModule), teste `apps/api/test/dashboard.service.spec.ts` (4 casos). \*\*Sem migration\*\* (só lê). Reusa `RedisService` (@Global) p/ o cache. Sem dep nova.
+
+  \- \*Decisões:\* cache por \*\*TTL curto (5min)\*\* + método `invalidate` exposto via endpoint — atende "<2s via cache" e "invalidado por eventos"; o \*\*auto-wiring\*\* da invalidação em cada mutação (pagamento/agendamento/orçamento) fica como melhoria (hoje: TTL + invalidação manual). Série mensal bucketizada em JS (fetch da janela de 6 meses + agrupa). Permissões reusam `billing:*`. Numbers batem com as fontes (Payment/Charge/Budget/Appointment) — mesmas tabelas dos relatórios.
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (222 pass, +4; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): KPIs \*\*receita R$80 (=soma Payment), faturamento R$450 (=soma Charge), 5 consultas, conversão 100% (4/4 aprovados)\*\* — \*\*batem com o banco\*\*; 1ª chamada \*\*cached:false\*\*, 2ª \*\*cached:true\*\* (<2s), série 6 meses; \*\*invalidate\*\* → 1 chave limpa → próxima chamada cached:false; token de paciente → \*\*403\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S42b\*\* — tela web `/dashboard` (cards de KPI: receita/faturamento/consultas/conversão + gráfico de barras da série mensal — receita e consultas). api-client +método. Herdadas: auto-invalidar o cache em eventos (pagamento/agendamento/orçamento), gráficos com Recharts (hoje barras CSS/SVG), navegação comum web, as de sempre.
 
 
 

@@ -930,7 +930,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S40 — Comissões  ·  \*DIVIDIDA: \[x] S40a (backend: CommissionRule/Commission + cálculo + relatório) · \[ ] S40b (tela web)\*
+\#### \[x] S40 — Comissões  ·  \*DIVIDIDA: \[x] S40a (backend: CommissionRule/Commission + cálculo + relatório) · \[x] S40b (tela web)\*
 
 \*\*Depende de:\*\* S30, S20
 
@@ -2013,6 +2013,18 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`test` (214 pass, +5; 2 skip)/`build`/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO\*\* (API real DB 5455): regra GERAL 10% + ESPECÍFICA 30%; \*\*comissão do procedimento\*\* (base R$200) → usa \*\*específica 30% = R$60\*\* PENDING; \*\*comissão sem procedimento\*\* (base R$100) → usa \*\*geral 10% = R$10\*\*; \*\*relatório\*\* por profissional → 2 lançamentos, \*\*total R$70\*\*; \*\*repasse\*\* → PAID+paidAt; re-repassar → \*\*409\*\*; relatório período futuro → vazio; profissional inválido → \*\*400\*\*; anti-IDOR comissão alheia → \*\*403\*\*.
 
   \- \*Pendências p/ próxima:\* \*\*S40b\*\* — tela web `/comissoes` (configurar regras por profissional/procedimento; relatório por profissional e período com total; registrar comissão; marcar repasse). api-client +métodos. Herdadas: auto-gerar comissão a partir de ExecutionLog(S30)/Payment(S20), navegação comum web, as de sempre.
+
+\- \*\*2026-06-24 · S40b — Comissões: tela web (FECHA a S40)\*\*
+
+  \- \*O que foi feito:\* UI de comissões. \*\*api-client:\* +`listCommissionRules()`/`createCommissionRule(input)`/`recordCommission(input)`/`commissionReport({professionalId,from,to})`/`payCommission(id)` + tipos `CommissionRuleItem`/`CommissionEntry`/`CommissionTotal`/`CommissionReport`.\* Página \*\*`/comissoes`\*\* (Server Component, regras + relatório + profissionais + procedimentos) + `commissions-view.tsx` (client) com 3 seções: \*\*Regras\*\* (lista + form profissional+procedimento(opc)+% → adicionar), \*\*Registrar comissão\*\* (profissional+procedimento(opc)+valor-base R$+descrição → calcula via regra), \*\*Relatório\*\* (filtro por profissional → \*\*total por profissional\*\* + lançamentos com `% de base` e botão \*\*Repassar\*\*/badge Repassado). Cada ação devolve regras/relatório atualizados.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (5 métodos + 4 tipos), `apps/web/app/comissoes/{page.tsx,actions.ts,commissions-view.tsx}` (novos). Sem backend novo (consome S40a), sem migration.
+
+  \- \*Decisões:\* valor-base em R$→centavos; o percentual/valor da comissão são \*\*calculados no backend\*\* (a UI só exibe). Procedimento opcional nas regras/registro ("Geral"/"Sem procedimento"). Página standalone `/comissoes` (navegação comum web pendente).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`format:check`/`audit` (1 moderate js-yaml transitivo, 0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* `/comissoes` mostra as regras (10%/30%) e o relatório da S40a (total R$70); \*\*registrar comissão\*\* (Revisor Demo, base R$300, sem procedimento) → \*\*"Comissao via web · 10% de R$ 300,00 · R$ 30,00"\*\* (regra geral aplicada) → total subiu p/ R$100; \*\*Repassar\*\* → badge \*\*"Repassado"\*\* (screenshot).\*
+
+  \- \*Pendências p/ próxima:\* \*\*S40 COMPLETA.\*\* Próxima no backlog: \*\*S41 — Metas\*\* (`Goal`; `goal/service.ts`; definir meta por clínica/profissional/período + acompanhar meta vs realizado). Depende de S42 (ou paralelo). Herdadas: auto-gerar comissão a partir de ExecutionLog(S30)/Payment(S20), navegação comum web (agenda/.../financeiro/caixa/estoque/comissoes), `Professional.specialties`, as de sempre.
 
 
 

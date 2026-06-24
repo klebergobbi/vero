@@ -156,6 +156,38 @@ export interface BudgetDetail extends BudgetSummary {
   treatmentPlan: { id: string; status: string } | null;
 }
 
+/** Comissões (§S40). */
+export interface CommissionRuleItem {
+  id: string;
+  professionalId: string;
+  procedureId: string | null;
+  percent: number;
+  professional: { name: string };
+}
+export interface CommissionEntry {
+  id: string;
+  professionalId: string;
+  procedureId: string | null;
+  description: string;
+  baseCents: number;
+  percent: number;
+  amountCents: number;
+  status: string;
+  reference: string | null;
+  date: string;
+  paidAt: string | null;
+  professional: { name: string };
+}
+export interface CommissionTotal {
+  professionalId: string;
+  name: string;
+  totalCents: number;
+}
+export interface CommissionReport {
+  entries: CommissionEntry[];
+  totals: CommissionTotal[];
+}
+
 /** Estoque (§S39). */
 export interface InventoryItemBase {
   id: string;
@@ -711,6 +743,60 @@ export function createApiClient(opts: ApiClientOptions) {
       request<CrcTask>(baseUrl, `/crc/tasks/${id}/assign`, {
         method: "PATCH",
         body: JSON.stringify({ userId }),
+        accessToken,
+      }),
+
+    // --- Comissões (§S40, gated billing:read|write) ---
+
+    listCommissionRules: (): Promise<CommissionRuleItem[]> =>
+      request<CommissionRuleItem[]>(baseUrl, "/commissions/rules", {
+        accessToken,
+      }),
+
+    createCommissionRule: (input: {
+      professionalId: string;
+      procedureId?: string;
+      percent: number;
+    }): Promise<CommissionRuleItem> =>
+      request<CommissionRuleItem>(baseUrl, "/commissions/rules", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    recordCommission: (input: {
+      professionalId: string;
+      procedureId?: string;
+      baseCents: number;
+      description: string;
+    }): Promise<CommissionEntry> =>
+      request<CommissionEntry>(baseUrl, "/commissions", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    commissionReport: (params?: {
+      professionalId?: string;
+      from?: string;
+      to?: string;
+    }): Promise<CommissionReport> => {
+      const qs = new URLSearchParams();
+      if (params?.professionalId)
+        qs.set("professionalId", params.professionalId);
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<CommissionReport>(
+        baseUrl,
+        `/commissions/report${suffix}`,
+        { accessToken },
+      );
+    },
+
+    payCommission: (id: string): Promise<CommissionEntry> =>
+      request<CommissionEntry>(baseUrl, `/commissions/${id}/pay`, {
+        method: "PATCH",
         accessToken,
       }),
 

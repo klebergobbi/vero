@@ -1318,6 +1318,44 @@ export function createApiClient(opts: ApiClientOptions) {
         accessToken,
       }),
 
+    // ── S48: Central de Agendamentos ──────────────────────────────────────────
+
+    centralSchedulingUnits: (): Promise<CentralUnitOption[]> =>
+      request<CentralUnitOption[]>(baseUrl, "/network/scheduling/units", {
+        accessToken,
+      }),
+
+    centralAppointments: (params?: {
+      from?: string;
+      to?: string;
+      unitId?: string;
+    }): Promise<CentralAppointment[]> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      if (params?.unitId) qs.set("unitId", params.unitId);
+      const q = qs.toString();
+      return request<CentralAppointment[]>(
+        baseUrl,
+        `/network/scheduling${q ? `?${q}` : ""}`,
+        { accessToken },
+      );
+    },
+
+    bookCentralAppointment: (input: {
+      unitId: string;
+      professionalId: string;
+      patientId: string;
+      startsAt: string;
+      endsAt: string;
+      notes?: string;
+    }): Promise<CentralAppointment> =>
+      request<CentralAppointment>(
+        baseUrl,
+        "/network/scheduling/appointments",
+        { method: "POST", body: JSON.stringify(input), accessToken },
+      ),
+
     /** Requisição autenticada genérica (escape hatch para recursos ainda sem método). */
     request: <T>(path: string, init?: RequestInit): Promise<T> =>
       request<T>(baseUrl, path, { ...init, accessToken }),
@@ -1325,3 +1363,25 @@ export function createApiClient(opts: ApiClientOptions) {
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+// ── S48 types ────────────────────────────────────────────────────────────────
+
+export interface CentralUnitOption {
+  id: string;
+  name: string;
+}
+
+export interface CentralAppointment {
+  id: string;
+  unitId: string;
+  unit: { name: string };
+  professionalId: string;
+  professional: { name: string };
+  patientId: string;
+  patient: { name: string; phone: string };
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  markers: string[];
+  notes: string | null;
+}

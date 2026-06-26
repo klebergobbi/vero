@@ -84,6 +84,7 @@ model Tenant {
   leadChannels     LeadChannel[]
   crmLeads         CRMLead[]
   referrals        Referral[]
+  royalties        Royalty[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -119,6 +120,7 @@ model Unit {
   appointments   Appointment[]
   availabilities Availability[]
   budgets        Budget[]
+  royalties      Royalty[]
 
   @@index([tenantId])
   @@index([clinicId])
@@ -1677,4 +1679,43 @@ model Referral {
   lead     CRMLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+/// Royalty por unidade de franquia (§6/S47): calculado do faturamento do período,
+/// cobrado via Asaas e conciliado manualmente.
+model Royalty {
+  id          String        @id @default(cuid())
+  tenantId    String
+  unitId      String
+  periodStart DateTime
+  periodEnd   DateTime
+  /// Faturamento bruto da unidade no período (base de cálculo).
+  baseCents   Int
+  /// Percentual de royalty aplicado (0–100).
+  percent     Int
+  /// Valor calculado = round(base × percent / 100).
+  amountCents Int
+  status      RoyaltyStatus @default(PENDING)
+  /// Artefatos retornados pelo Asaas após a cobrança.
+  asaasPaymentId String?
+  pixPayload     String?
+  boletoBarcode  String?
+  paidAt         DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  /// Uma royalty por (unidade × período) — idempotência do cálculo.
+  @@unique([tenantId, unitId, periodStart, periodEnd])
+  @@index([tenantId])
+  @@index([tenantId, unitId])
+}
+
+enum RoyaltyStatus {
+  PENDING
+  CHARGED
+  PAID
+  CANCELLED
 }

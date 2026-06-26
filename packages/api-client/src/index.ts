@@ -40,6 +40,19 @@ export interface SwitchUnitResult extends TokenPair {
   unitId: string;
 }
 
+/** Linha do ranking de unidades (§S46): comparativo do franqueador. */
+export interface UnitRankRow {
+  unitId: string;
+  name: string;
+  billedCents: number;
+  appointments: number;
+  completed: number;
+  noShow: number;
+  approvedBudgets: number;
+  rejectedBudgets: number;
+  conversionPercent: number;
+}
+
 /** Resumo de profissional (User) para o seletor da agenda (id + name). */
 export interface ProfessionalSummary {
   id: string;
@@ -1238,6 +1251,11 @@ export function createApiClient(opts: ApiClientOptions) {
       request<SwitchUnitResult>(baseUrl, "/network/switch-unit", {
         method: "POST",
         body: JSON.stringify({ unitId }),
+        accessToken,
+      }),
+
+    unitsRanking: (): Promise<UnitRankRow[]> =>
+      request<UnitRankRow[]>(baseUrl, "/network/units/ranking", {
         accessToken,
       }),
 

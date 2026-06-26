@@ -1010,7 +1010,7 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
 
 
 
-\#### \[ ] S46 — Gestão + ranking de unidades
+\#### \[x] S46 — Gestão + ranking de unidades  ·  \*(S46a backend + S46b web)\*
 
 \*\*Depende de:\*\* S42, S45
 
@@ -2155,6 +2155,24 @@ Cada sessão é uma mini-spec. As regras transversais de §4 e §5 valem sempre;
   \- \*Verificação:\* `pnpm lint` (8/8)/`build` (web compila `/agenda`)/`format`/`audit` (0 high/critical) \*\*verdes\*\*. \*\*AO VIVO (web, Playwright):\* login → `/agenda` mostra o seletor com \*\*Filial + Matriz\*\* (ativa = Filial, a padrão); trocar p/ \*\*Matriz\*\* → ativa vira `demo-unit` e \*\*PERSISTE após reload\*\* (cookies regravados; a troca revalidou no servidor e re-emitiu a sessão).\*
 
   \- \*Pendências p/ próxima:\* \*\*S45 COMPLETA — abre a FASE 5 (rede/franquia).\*\* Próxima no backlog: \*\*S46 — Gestão + ranking de unidades\*\* (`network/units.service.ts`; dashboard consolidado + ranking entre unidades: faturamento/ocupação/conversão). Depende de S42+S45. Herdadas: retrofit de filtro por unidade nos módulos (agenda primeiro), navegação comum no web, `convertedPatientId` no fechamento do lead, `Professional`/`Room` dedicados, extrair `@vero/mobile-shared`, as de sempre.
+
+\- \*\*2026-06-26 · S46a — Gestão + ranking de unidades: backend\*\*  ·  \*S46 DIVIDIDA em S46a (esta, commitada em sessão anterior) + S46b (web)\*
+
+  \- \*O que foi feito:\* `UnitsService.ranking(tenantId)`: agrega em paralelo (`Promise.all`) as unidades do tenant + agendamentos por unidade (`groupBy unitId`: contagem total, realizadas=COMPLETED, faltas=NO_SHOW) + orçamentos decididos (`groupBy unitId`: aprovados/recusados) + cobranças não-canceladas (soma `totalCents` por unidade) → monta um `UnitRankRow[]` ordenado por `billedCents` desc. \*\*Conversão:\*\* `conversionPercent = round(aprovados/(aprovados+recusados)*100)`. `UnitsController`: `GET /network/units/ranking` gated por `@Permissions('billing:read')` (franqueador/gestor). Declarado antes de `GET /network/units` no módulo p/ evitar colisão de rota.
+
+  \- \*Arquivos tocados:\* `apps/api/src/network/{units.service,units.controller,access.module}.ts` (novos/atualizado). Sem migration, sem dep nova.
+
+\- \*\*2026-06-26 · S46b — Gestão + ranking de unidades: tela web (FECHA a S46)\*\*
+
+  \- \*O que foi feito:\* tela `/unidades` (Server Component, BFF, force-dynamic). \*\*api-client:\* +`unitsRanking()` + tipo `UnitRankRow`.\* Página: consolidado da rede (3 cards: Faturamento total / Consultas / Nº de unidades) + \*\*ranking por faturamento\*\* (lista ordenada: posição, nome, barra de progresso relativa ao máximo, faturamento, consultas realizadas/faltas, conversão aprovados/recusados). Líder destacado em verde (borda + fundo). Link "← Voltar" p/ a agenda.
+
+  \- \*Arquivos tocados:\* `packages/api-client/src/index.ts` (+`UnitRankRow` +`unitsRanking()`), `apps/web/app/unidades/page.tsx` (novo). Sem backend novo (consome S46a), sem migration.
+
+  \- \*Decisões:\* Server Component puro (sem interatividade); barra de progresso proporcional ao `maxBilled` (largura CSS). Rota `/unidades` protegida pelo middleware (deny-by-default, não está em `PUBLIC_PATHS`). Sem período configurável p/ ora (agrega tudo — filtro de período fica como melhoria).
+
+  \- \*Verificação:\* `pnpm lint` (8/8)/`test` (237 pass, 2 skip)/`build` (4/4, `/unidades` compilou dinâmico)/`format:check`/`audit` (0 high/critical; 1 moderate dev-only) \*\*verdes\*\*.
+
+  \- \*Pendências p/ próxima:\* \*\*S46 COMPLETA.\*\* Próxima no backlog: \*\*S47 — Royalties\*\* (schema `Royalty`; `network/royalty.service.ts` cálculo sobre faturamento por unidade; cobrança via split Asaas; conciliação do recebimento). Depende de S20+S46. Herdadas: filtro de período na tela de unidades, retrofit de filtro por unidade nos módulos, navegação comum no web (menu entre as páginas), `convertedPatientId` no fechamento do lead, `Professional`/`Room` dedicados, extrair `@vero/mobile-shared`, as de sempre.
 
 
 

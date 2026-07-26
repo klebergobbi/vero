@@ -1,10 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { AgentService } from "../../ai/agent.service";
 import { MeService } from "../../me/me.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { WhatsAppService } from "./whatsapp.service";
 
 /** Resultado do processamento (p/ log/observabilidade e testes). */
-export type InboundOutcome = "confirmed" | "duplicate" | "ignored" | "no-match";
+export type InboundOutcome =
+  | "confirmed"
+  | "duplicate"
+  | "ignored"
+  | "no-match"
+  | "agent-handled";
 
 /** Recorte do payload de mensagem da Evolution (campos que usamos). */
 export interface EvolutionWebhookPayload {
@@ -37,6 +44,9 @@ const AFFIRMATIVE = new Set([
  *   reconfirma (reprocesso não duplica — aceite S12).
  * - Resolve a consulta pelo TELEFONE do remetente (nunca um id vindo do payload →
  *   sem IDOR) e reusa a confirmação idempotente da S11 com `source: WHATSAPP`.
+ * - Mensagens que NÃO são uma confirmação simples (ou que não casam com uma
+ *   consulta pendente) são delegadas ao agente de IA (S50) — que só propõe;
+ *   toda escrita no banco continua validada pelos services existentes.
  */
 @Injectable()
 export class WhatsAppWebhookService {
@@ -47,6 +57,8 @@ export class WhatsAppWebhookService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly me: MeService,
+    private readonly agent: AgentService,
+    private readonly whatsapp: WhatsAppService,
   ) {}
 
   async handleInbound(
@@ -72,22 +84,35 @@ export class WhatsAppWebhookService {
     );
     if (fresh !== "OK") return "duplicate";
 
-    if (!this.isAffirmative(text)) return "ignored";
+    // Caminho rápido/determinístico (S12b, sem custo de IA): "sim" respondendo a
+    // um lembrete de consulta já agendada confirma direto. Só esse caso exato
+    // (afirmativo + consulta pendente) evita o agente — qualquer outra coisa cai
+    // nele (inclusive "sim" que faça parte de uma conversa em andamento).
+    if (this.isAffirmative(text)) {
+      const appt = await this.findUpcomingScheduled(remoteJid);
+      if (appt) {
+        // Reusa a lógica idempotente da S11 (status + ConfirmationEvent atômicos).
+        await this.me.confirmAppointment(
+          appt.tenantId,
+          appt.patientId,
+          appt.id,
+          "WHATSAPP",
+        );
+        this.logger.log(
+          `Confirmação por WhatsApp: appointment ${appt.id} (tenant ${appt.tenantId})`,
+        );
+        return "confirmed";
+      }
+    }
 
-    const appt = await this.findUpcomingScheduled(remoteJid);
-    if (!appt) return "no-match";
+    // Agente de IA (S50) — interpreta a conversa livre; sem chave configurada,
+    // devolve null e a mensagem é apenas ignorada (fail-closed, sem quebrar o webhook).
+    const phone = remoteJid.split("@")[0] ?? "";
+    const reply = await this.agent.handleMessage(phone, text);
+    if (!reply) return "ignored";
 
-    // Reusa a lógica idempotente da S11 (status + ConfirmationEvent atômicos).
-    await this.me.confirmAppointment(
-      appt.tenantId,
-      appt.patientId,
-      appt.id,
-      "WHATSAPP",
-    );
-    this.logger.log(
-      `Confirmação por WhatsApp: appointment ${appt.id} (tenant ${appt.tenantId})`,
-    );
-    return "confirmed";
+    await this.whatsapp.sendText(phone, reply);
+    return "agent-handled";
   }
 
   /**

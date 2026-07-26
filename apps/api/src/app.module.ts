@@ -8,6 +8,7 @@ import { LoggerModule } from "nestjs-pino";
 import type { IncomingMessage } from "node:http";
 import { WhatsAppModule } from "./integrations/whatsapp/whatsapp.module";
 import { PushModule } from "./push/push.module";
+import { AiModule } from "./ai/ai.module";
 
 /**
  * Converte a REDIS_URL em opções de conexão do BullMQ. Passamos opções (não uma
@@ -169,6 +170,7 @@ import { RedisModule } from "./redis/redis.module";
     AccessModule,
     PublicApiModule,
     MeModule,
+    AiModule,
     WhatsAppModule,
     PushModule,
   ],

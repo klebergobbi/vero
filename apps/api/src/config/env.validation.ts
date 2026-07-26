@@ -58,6 +58,12 @@ export const envSchema = z.object({
   // nunca recebe input do usuário (anti-SSRF). Use sandbox em homologação.
   SPC_API_URL: z.string().url("SPC_API_URL deve ser uma URL válida").optional(),
   SPC_API_KEY: z.string().min(1).optional(),
+
+  // Agente de agendamento via IA (S50) — Claude (Anthropic), endpoint FIXO (sem
+  // input do usuário, sem risco de SSRF). Opcional: sem a chave, o agente falha
+  // fechado (ServiceUnavailable) e o WhatsApp cai no fluxo simples já existente.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-5"),
 });
 
 export type Env = z.infer<typeof envSchema>;

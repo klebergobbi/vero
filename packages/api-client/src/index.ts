@@ -1350,19 +1350,110 @@ export function createApiClient(opts: ApiClientOptions) {
       endsAt: string;
       notes?: string;
     }): Promise<CentralAppointment> =>
-      request<CentralAppointment>(
-        baseUrl,
-        "/network/scheduling/appointments",
-        { method: "POST", body: JSON.stringify(input), accessToken },
-      ),
+      request<CentralAppointment>(baseUrl, "/network/scheduling/appointments", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
 
     /** Requisição autenticada genérica (escape hatch para recursos ainda sem método). */
     request: <T>(path: string, init?: RequestInit): Promise<T> =>
       request<T>(baseUrl, path, { ...init, accessToken }),
+
+    // ── S49: Gestão da API pública (management endpoints — JWT) ──────────────
+
+    createApiKey: (input: {
+      name: string;
+      scopes: string[];
+      rateLimit?: number;
+      expiresAt?: string;
+    }): Promise<ApiKeyCreated> =>
+      request<ApiKeyCreated>(baseUrl, "/manage/api-keys", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    listApiKeys: (): Promise<ApiKeyItem[]> =>
+      request<ApiKeyItem[]>(baseUrl, "/manage/api-keys", { accessToken }),
+
+    revokeApiKey: (id: string): Promise<void> =>
+      request<void>(baseUrl, `/manage/api-keys/${id}`, {
+        method: "DELETE",
+        accessToken,
+      }),
+
+    getManageBranding: (): Promise<BrandingData> =>
+      request<BrandingData>(baseUrl, "/manage/branding", { accessToken }),
+
+    updateBranding: (input: {
+      brandColor?: string;
+      logoUrl?: string;
+    }): Promise<BrandingData> =>
+      request<BrandingData>(baseUrl, "/manage/branding", {
+        method: "PATCH",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    createWebhook: (input: {
+      url: string;
+      events: string[];
+      name?: string;
+    }): Promise<WebhookCreated> =>
+      request<WebhookCreated>(baseUrl, "/manage/webhooks", {
+        method: "POST",
+        body: JSON.stringify(input),
+        accessToken,
+      }),
+
+    listWebhooks: (): Promise<WebhookItem[]> =>
+      request<WebhookItem[]>(baseUrl, "/manage/webhooks", { accessToken }),
+
+    revokeWebhook: (id: string): Promise<void> =>
+      request<void>(baseUrl, `/manage/webhooks/${id}`, {
+        method: "DELETE",
+        accessToken,
+      }),
   };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+/**
+ * Cliente da API pública V1 para consumidores externos (terceiros).
+ * Autentica via API key (Bearer), sem JWT de sessão.
+ */
+export function createV1Client(baseUrl: string, apiKey: string) {
+  const headers = { Authorization: `Bearer ${apiKey}` };
+
+  return {
+    appointments: (params?: {
+      from?: string;
+      to?: string;
+    }): Promise<V1Appointment[]> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const q = qs.toString();
+      return request<V1Appointment[]>(
+        baseUrl,
+        `/api/v1/appointments${q ? `?${q}` : ""}`,
+        { headers },
+      );
+    },
+
+    patients: (q?: string): Promise<V1Patient[]> => {
+      const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+      return request<V1Patient[]>(baseUrl, `/api/v1/patients${qs}`, {
+        headers,
+      });
+    },
+
+    branding: (): Promise<BrandingData> =>
+      request<BrandingData>(baseUrl, "/api/v1/branding", { headers }),
+  };
+}
 
 // ── S48 types ────────────────────────────────────────────────────────────────
 
@@ -1384,4 +1475,61 @@ export interface CentralAppointment {
   status: string;
   markers: string[];
   notes: string | null;
+}
+
+// ── S49 types ────────────────────────────────────────────────────────────────
+
+export interface ApiKeyItem {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  rateLimit: number;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+/** Retorno do `createApiKey`: inclui o plain key retornado UMA única vez. */
+export interface ApiKeyCreated extends ApiKeyItem {
+  key: string;
+}
+
+export interface WebhookItem {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** Retorno do `createWebhook`: inclui o signing secret retornado UMA única vez. */
+export interface WebhookCreated extends WebhookItem {
+  secret: string;
+}
+
+export interface BrandingData {
+  name: string;
+  brandColor: string | null;
+  logoUrl: string | null;
+}
+
+export interface V1Appointment {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  unitId: string;
+  professionalId: string;
+  patientId: string;
+}
+
+export interface V1Patient {
+  id: string;
+  name: string;
+  phone: string;
+  leadSource: string;
+  createdAt: string;
 }

@@ -56,6 +56,7 @@ import { ReportModule } from "./reports/report.module";
 import { ReturnModule } from "./return/return.module";
 import { InvoiceModule } from "./invoice/invoice.module";
 import { AccessModule } from "./network/access.module";
+import { PublicApiModule } from "./public-api/public-api.module";
 import { SpecialtyModule } from "./specialty/specialty.module";
 import { TreatmentModule } from "./treatment/treatment.module";
 import { MeModule } from "./me/me.module";
@@ -166,6 +167,7 @@ import { RedisModule } from "./redis/redis.module";
     ReportModule,
     CrmModule,
     AccessModule,
+    PublicApiModule,
     MeModule,
     WhatsAppModule,
     PushModule,

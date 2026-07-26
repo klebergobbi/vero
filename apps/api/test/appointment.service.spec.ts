@@ -65,7 +65,14 @@ describe("AppointmentService", () => {
         ),
       },
     } as unknown as PrismaService;
-    return { service: new AppointmentService(prisma), prisma };
+    const apiKeys = { deliverEvent: jest.fn().mockResolvedValue(undefined) };
+    return {
+      service: new AppointmentService(
+        prisma,
+        apiKeys as unknown as import("../src/public-api/api-key.service").ApiKeyService,
+      ),
+      prisma,
+    };
   }
 
   it("cria agendamento válido escopado por tenant", async () => {

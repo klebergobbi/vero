@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { FREEING_STATUSES } from "@vero/types";
 import { TenantScope } from "../common/repositories/tenant-scoped.helper";
 import { PrismaService } from "../prisma/prisma.service";
+import { ApiKeyService } from "../public-api/api-key.service";
 import { localDayAndMinute } from "./agenda.util";
 import type { CreateAppointmentDto } from "./dto/create-appointment.dto";
 import type { CreateAvailabilityDto } from "./dto/create-availability.dto";
@@ -23,7 +24,10 @@ interface ConflictArgs {
 
 @Injectable()
 export class AppointmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly apiKeys: ApiKeyService,
+  ) {}
 
   async create(tenantId: string, dto: CreateAppointmentDto) {
     const scope = new TenantScope(tenantId);
@@ -60,7 +64,20 @@ export class AppointmentService {
       markers: dto.markers ?? [],
       notes: dto.notes ?? null,
     };
-    return this.prisma.appointment.create({ data });
+    const created = await this.prisma.appointment.create({ data });
+    // S49: notifica webhooks de saída (fire-and-forget; nunca bloqueia a resposta).
+    void this.apiKeys
+      .deliverEvent(tenantId, "appointment.created", {
+        id: created.id,
+        startsAt: created.startsAt,
+        endsAt: created.endsAt,
+        status: created.status,
+        unitId: created.unitId,
+        professionalId: created.professionalId,
+        patientId: created.patientId,
+      })
+      .catch(() => undefined);
+    return created;
   }
 
   async findAll(tenantId: string, query: ListAppointmentsDto) {

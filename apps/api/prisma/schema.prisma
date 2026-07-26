@@ -85,6 +85,11 @@ model Tenant {
   crmLeads         CRMLead[]
   referrals        Referral[]
   royalties        Royalty[]
+  // S49: API pública + white-label
+  brandColor       String?
+  logoUrl          String?
+  apiKeys          ApiKey[]
+  outboundWebhooks OutboundWebhook[]
 }
 
 /// Pessoa jurídica/marca dentro do tenant (§6: Tenant→Clinic→Unit).
@@ -1718,4 +1723,52 @@ enum RoyaltyStatus {
   CHARGED
   PAID
   CANCELLED
+}
+
+/// Chave de API por tenant (S49). Autoriza terceiros a consumir a API pública
+/// com escopos restritos + rate limit por chave.
+/// Apenas o hash SHA-256 é armazenado — a chave plain é retornada UMA única vez.
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  /// SHA-256 hex da chave plain — única globalmente (lookup por hash).
+  keyHash    String    @unique
+  /// Primeiros 12 chars da chave plain, para exibição ("vero_abc123…").
+  keyPrefix  String
+  scopes     String[]
+  isActive   Boolean   @default(true)
+  rateLimit  Int       @default(60)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// Webhook de saída por tenant (S49). Entrega eventos de domínio a sistemas externos.
+/// O secret precisa ser reversível (o servidor assina cada entrega com o MESMO
+/// segredo que o terceiro recebeu, para a verificação de HMAC bater do lado dele)
+/// — por isso é CIFRADO em repouso (CryptoService, §4), não hasheado.
+model OutboundWebhook {
+  id         String    @id @default(cuid())
+  tenantId   String
+  name       String
+  url        String
+  events     String[]
+  /// Segredo compartilhado CIFRADO em repouso (AES-256-GCM). O plain é
+  /// retornado UMA única vez na criação; decifrado só na hora de assinar a entrega.
+  secretEnc  String
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }

@@ -1,0 +1,14 @@
+# Copie para terraform.tfvars (gitignored) e preencha com valores reais.
+# NUNCA commitar terraform.tfvars — só este .example, sem segredo real (§4).
+# Use um token/conta e um par de chaves Spaces PRÓPRIOS deste ambiente —
+# segredos distintos por ambiente é requisito da S53.
+
+do_token          = "troque-pelo-seu-token-da-api-do-digitalocean"
+spaces_access_id  = "troque-pela-sua-spaces-access-key-id"
+spaces_secret_key = "troque-pela-sua-spaces-secret-key"
+
+jwt_secret   = "troque-por-um-segredo-aleatorio-DIFERENTE-do-dev-de-32-ou-mais-caracteres"
+cors_origins = "https://vero-staging-troque.ondigitalocean.app"
+
+anthropic_api_key = ""
+extra_env         = {}

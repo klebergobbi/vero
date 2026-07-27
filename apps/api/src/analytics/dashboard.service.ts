@@ -12,6 +12,20 @@ function monthKey(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+export interface DashboardData {
+  period: { from: string; to: string };
+  kpis: {
+    revenueCents: number;
+    billedCents: number;
+    appointmentsCount: number;
+    conversionPercent: number;
+    approvedBudgets: number;
+    rejectedBudgets: number;
+  };
+  series: { month: string; revenueCents: number; appointments: number }[];
+  generatedAt: string;
+}
+
 /**
  * Dashboard analítico (§6/S42): agrega os indicadores-chave do tenant (receita,
  * faturamento, ocupação/consultas, conversão de orçamentos) num só lugar, com
@@ -25,14 +39,17 @@ export class DashboardService {
     private readonly redis: RedisService,
   ) {}
 
-  async getDashboard(tenantId: string, range?: { from?: string; to?: string }) {
+  async getDashboard(
+    tenantId: string,
+    range?: { from?: string; to?: string },
+  ): Promise<DashboardData & { cached: boolean }> {
     const to = range?.to ? new Date(range.to) : new Date();
     const from = range?.from ? new Date(range.from) : startOfMonthUtc(to);
     const key = `dashboard:${tenantId}:${from.toISOString()}:${to.toISOString()}`;
 
     const cached = await this.redis.get(key);
     if (cached) {
-      return { ...(JSON.parse(cached) as object), cached: true };
+      return { ...(JSON.parse(cached) as DashboardData), cached: true };
     }
 
     const data = await this.compute(tenantId, from, to);

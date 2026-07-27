@@ -52,7 +52,8 @@ export interface AnthropicResponse {
 }
 
 /**
- * Proxy backend p/ a Claude Messages API (S50 — agente de agendamento via IA).
+ * Proxy backend p/ a Claude Messages API. Reusado pelo agente de agendamento
+ * (S50, com tool-use) e pelos insights de IA (S51, geração de texto simples).
  * CLAUDE.md §7: integração externa SEMPRE pelo servidor, segredo só aqui.
  * Endpoint FIXO (não recebe input do usuário — sem risco de SSRF, ao contrário
  * de integrações com base configurável). Fail-closed sem `ANTHROPIC_API_KEY`.
@@ -76,12 +77,12 @@ export class AnthropicService {
   async createMessage(input: {
     system: string;
     messages: AnthropicMessage[];
-    tools: AnthropicTool[];
+    tools?: AnthropicTool[];
     maxTokens?: number;
   }): Promise<AnthropicResponse> {
     if (!this.apiKey) {
       throw new ServiceUnavailableException(
-        "Agente de IA não configurado (ANTHROPIC_API_KEY ausente).",
+        "IA não configurada (ANTHROPIC_API_KEY ausente).",
       );
     }
 
@@ -100,7 +101,7 @@ export class AnthropicService {
           max_tokens: input.maxTokens ?? 1024,
           system: input.system,
           messages: input.messages,
-          tools: input.tools,
+          ...(input.tools ? { tools: input.tools } : {}),
         }),
         signal: controller.signal,
       });

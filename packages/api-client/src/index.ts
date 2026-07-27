@@ -1415,6 +1415,27 @@ export function createApiClient(opts: ApiClientOptions) {
         method: "DELETE",
         accessToken,
       }),
+
+    // --- Insights via IA (§S51, gated billing:read|write) ---
+
+    getInsights: (params?: {
+      from?: string;
+      to?: string;
+    }): Promise<InsightsResult> => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      return request<InsightsResult>(baseUrl, `/ai/insights${suffix}`, {
+        accessToken,
+      });
+    },
+
+    invalidateInsights: (): Promise<{ cleared: number }> =>
+      request<{ cleared: number }>(baseUrl, "/ai/insights/invalidate", {
+        method: "POST",
+        accessToken,
+      }),
   };
 }
 
@@ -1532,4 +1553,47 @@ export interface V1Patient {
   phone: string;
   leadSource: string;
   createdAt: string;
+}
+
+// ── S51 types ────────────────────────────────────────────────────────────────
+
+export interface Insight {
+  type: "conversao" | "inadimplencia" | "ocupacao" | "crm";
+  title: string;
+  explanation: string;
+  suggestion: string;
+}
+
+export interface InsightsMetrics {
+  period: { from: string; to: string };
+  conversion: { percent: number; approved: number; rejected: number };
+  occupancy: {
+    percent: number;
+    bookedMinutes: number;
+    capacityMinutes: number;
+  };
+  delinquency: {
+    percent: number;
+    overdueCount: number;
+    dueCount: number;
+    overdueCents: number;
+  };
+  channels: {
+    sourceId: string;
+    name: string;
+    leads: number;
+    closed: number;
+    revenueCents: number;
+    costCents: number;
+    roiCents: number;
+  }[];
+}
+
+export interface InsightsResult {
+  generatedAt: string;
+  cached: boolean;
+  disclosure: string;
+  aiAvailable: boolean;
+  metrics: InsightsMetrics;
+  insights: Insight[];
 }

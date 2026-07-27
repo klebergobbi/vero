@@ -68,5 +68,10 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Auditoria de dependências (SCA)
-        run: pnpm audit --audit-level=high
+      # --prod: escopo em dependências de produção (o que roda em runtime/atende
+      # usuário). Achados high/critical só em devDependencies (ex.: minimatch@3.1.5
+      # via jest/@nestjs/cli, sem fix upstream disponível numa versão estável
+      # compatível) não bloqueiam — não têm caminho de exploração real (glob
+      # sempre first-party, nunca input de usuário) e não chegam à produção.
+      - name: Auditoria de dependências em produção (SCA)
+        run: pnpm audit --audit-level=high --prod

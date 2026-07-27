@@ -13,7 +13,13 @@ export async function bookCentralAction(formData: FormData) {
   const endsDatetime = formData.get("endsAt") as string;
   const notes = (formData.get("notes") as string) || undefined;
 
-  if (!unitId || !professionalId || !patientId || !datetimeLocal || !endsDatetime) {
+  if (
+    !unitId ||
+    !professionalId ||
+    !patientId ||
+    !datetimeLocal ||
+    !endsDatetime
+  ) {
     return { error: "Preencha todos os campos obrigatórios." };
   }
 
@@ -21,13 +27,22 @@ export async function bookCentralAction(formData: FormData) {
   const endsAt = new Date(endsDatetime).toISOString();
 
   try {
-    await api.bookCentralAppointment({ unitId, professionalId, patientId, startsAt, endsAt, notes });
+    await api.bookCentralAppointment({
+      unitId,
+      professionalId,
+      patientId,
+      startsAt,
+      endsAt,
+      notes,
+    });
     return { success: true };
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
-    if (status === 409) return { error: "Conflito de horário na unidade selecionada." };
+    if (status === 409)
+      return { error: "Conflito de horário na unidade selecionada." };
     if (status === 403) return { error: "Sem acesso à unidade selecionada." };
-    if (status === 400) return { error: "Dados inválidos ou fora da disponibilidade." };
+    if (status === 400)
+      return { error: "Dados inválidos ou fora da disponibilidade." };
     return { error: "Erro ao criar agendamento." };
   }
 }

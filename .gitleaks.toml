@@ -3,11 +3,13 @@ title = "Vero — config do gitleaks (S52)"
 [extend]
 useDefault = true
 
-# Arquivos .env.example NUNCA têm segredo real (§1/§4 do CLAUDE.md) — são
-# templates com placeholders no formato de uma env var real, o que dispara
-# as regras genéricas de detecção de segredo (falso positivo por design).
+# Arquivos .env.example e *.tfvars.example NUNCA têm segredo real (§1/§4 do
+# CLAUDE.md) — são templates com placeholders no formato de um segredo real
+# (ex.: "troque-por-um-segredo-aleatorio..."), o que dispara as regras
+# genéricas de detecção de segredo (falso positivo por design, S52/S53).
 [allowlist]
 description = "Templates de configuração sem segredo real"
 paths = [
   '''(^|/)\.env\.example$''',
+  '''(^|/)terraform\.tfvars\.example$''',
 ]

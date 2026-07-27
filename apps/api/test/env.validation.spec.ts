@@ -34,3 +34,10 @@ describe("validateEnv", () => {
     ).toThrow(/DATABASE_URL/);
   });
 });
+
+// teste temporário S52: prova que o CI bloqueia teste quebrado + segredo
+describe("S52 gate check (temporário)", () => {
+  it("falha de propósito", () => {
+    expect(1).toBe(2);
+  });
+});
